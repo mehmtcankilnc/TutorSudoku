@@ -10,26 +10,46 @@ export interface TutorialStep {
 }
 
 export interface TutorialScenario {
-  id: string; // Unique ID for specific tutorial (e.g. "naked-single-1")
+  id: string;
   title: string;
   steps: TutorialStep[];
 }
 
-// Helper to create empty layouts
-const createBoard = () =>
-  Array(9)
-    .fill(null)
-    .map(() => Array(9).fill(null));
-const createCandidates = (): number[][][] =>
-  Array(9)
-    .fill(null)
-    .map(() =>
-      Array(9)
-        .fill(null)
-        .map(() => [] as number[]),
-    );
+// --- Helpers ---
 
-// Helper: Auto-fill candidates for the whole board based on Sudoku rules
+const parseBoard = (str: string): (number | null)[][] => {
+  const board: (number | null)[][] = [];
+  const rows = str
+    .trim()
+    .split('\n')
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
+
+  // If input is just one long string 81 chars
+  if (rows.length === 1 && str.replace(/\s/g, '').length === 81) {
+    const cleanStr = str.replace(/\s/g, '');
+    for (let r = 0; r < 9; r++) {
+      const row: (number | null)[] = [];
+      for (let c = 0; c < 9; c++) {
+        const char = cleanStr[r * 9 + c];
+        row.push(char === '.' || char === '0' ? null : parseInt(char, 10));
+      }
+      board.push(row);
+    }
+  } else {
+    // Input is 9 rows
+    rows.forEach(rowStr => {
+      const row: (number | null)[] = [];
+      for (let char of rowStr) {
+        if (char === '.' || char === '0') row.push(null);
+        else if (/[1-9]/.test(char)) row.push(parseInt(char, 10));
+      }
+      if (row.length === 9) board.push(row);
+    });
+  }
+  return board;
+};
+
 const generateCandidates = (board: (number | null)[][]): number[][][] => {
   return board.map((row, r) =>
     row.map((val, c) => {
@@ -39,244 +59,224 @@ const generateCandidates = (board: (number | null)[][]): number[][][] => {
   );
 };
 
-// --- SCENARIO DATA PREP ---
+const overrideCandidates = (
+  baseCandidates: number[][][],
+  overrides: { r: number; c: number; vals: number[] }[],
+): number[][][] => {
+  const newCands = JSON.parse(JSON.stringify(baseCandidates));
+  overrides.forEach(({ r, c, vals }) => {
+    newCands[r][c] = vals;
+  });
+  return newCands;
+};
+
+// --- Scenarios ---
 
 // 1. Naked Single
-const t1_1_board = createBoard();
-[1, 2, 3, 4, 5, 6, 7, 8].forEach((n, i) => (t1_1_board[0][i] = n));
-const t1_1_cands = generateCandidates(t1_1_board);
+const s1_board = parseBoard(
+  `435269781
+682571493
+197834562
+826195347
+374682915
+951743628
+519326874
+248957136
+76341825.`,
+);
+const s1_cands = generateCandidates(s1_board);
 
-const t1_2_board = createBoard();
-t1_2_board[4][4] = null;
-t1_2_board[4][0] = 1;
-t1_2_board[4][1] = 2;
-t1_2_board[4][2] = 3;
-t1_2_board[4][6] = 4;
-t1_2_board[0][4] = 6;
-t1_2_board[1][4] = 7;
-t1_2_board[8][4] = 8;
-t1_2_board[5][5] = 9;
-const t1_2_cands = generateCandidates(t1_2_board);
+// 2. Hidden Single
+const s2_board = parseBoard(
+  `.23456789
+4.......1
+5.......2
+6.......3
+......... 
+7.......4
+8.......5
+9.......6
+1.......7`,
+);
+let s2_cands = generateCandidates(s2_board);
+// Force the visual for hidden single in (0,0) as '1'
+s2_cands = overrideCandidates(s2_cands, [
+  { r: 0, c: 0, vals: [1] },
+  // Actually standard generation handles this simple case well:
+  // If neighbors are 2-9, then 1 is unique.
+]);
 
-// 2. Hidden Single (Row)
-const t2_1_board = createBoard();
-// Setup row 2 to have a Hidden Single '5' at (2,0).
-// Fill other cells with random valid stuff or leave empty but blocked.
-// We block '5' from cols 3-8 in row 2.
-// Column blockers:
-t2_1_board[3][3] = 5;
-t2_1_board[4][4] = 5;
-t2_1_board[5][5] = 5;
-t2_1_board[6][6] = 5;
-t2_1_board[7][7] = 5;
-t2_1_board[8][8] = 5;
-// For cols 1 and 2, we block them too.
-t2_1_board[0][1] = 5;
-t2_1_board[0][2] = 5;
-// Now (2,0) is unique for 5 in Row 2.
-const t2_1_cands = generateCandidates(t2_1_board);
-
-// 3. Locked Candidates
-const t3_1_board = createBoard();
-// Pointing Pair of 1s in Box 0 (Top-left).
-// Block 1s in rest of box 0.
-t3_1_board[1][0] = 2;
-t3_1_board[1][1] = 3;
-t3_1_board[1][2] = 4;
-t3_1_board[2][0] = 5;
-t3_1_board[2][1] = 6;
-t3_1_board[2][2] = 7;
-// 1s can only be at (0,0), (0,1), (0,2).
-// But let's say (0,2) is filled.
-t3_1_board[0][2] = 8;
-// Now 1 is at (0,0) or (0,1).
-// This points to Row 0. 1 cannot be in (0,3) -> (0,8).
-// We'll leave those empty.
-const t3_1_cands = generateCandidates(t3_1_board);
+// 3. Locked Candidates (Pointing)
+// Box 0: top row empty, rest blocked.
+const s3_board = parseBoard(
+  `000100000
+000100000
+000100000
+222000000
+333000000
+444000000
+555000000
+666000000
+777000000`,
+);
+// This is too abstract. Let's constructs specific pointing case.
+// 1s in Box 0 restricted to Row 0.
+// means Row 0 outside box 0 (0,3+) cannot have 1.
+let s3_cands = generateCandidates(s3_board);
+// Manually set sensible candidates to show "1" is locked in (0,0) and (0,1)
+// And show "1" exists in (0,4) for example, which should be eliminated.
+s3_cands = overrideCandidates(s3_cands, [
+  { r: 0, c: 0, vals: [1, 9] },
+  { r: 0, c: 1, vals: [1, 8] },
+  { r: 0, c: 2, vals: [9, 8] }, // No 1 here, maybe filled or blocked
+  { r: 0, c: 4, vals: [1, 5] }, // Target to eliminate
+]);
 
 // 4. Naked Pair
-const t4_1_board = createBoard();
-// Naked Pair [2,3] at (0,0) and (0,1).
-// We construct it by blocking everything else.
-// Row blocks:
-t4_1_board[0][8] = 9;
-// Col blocks for (0,0): 1,4,5,6,7,8
-t4_1_board[1][0] = 1;
-t4_1_board[2][0] = 4;
-t4_1_board[3][0] = 5;
-t4_1_board[4][0] = 6;
-t4_1_board[5][0] = 7;
-t4_1_board[6][0] = 8;
-// Col blocks for (0,1): 1,4,5,6,7,8
-t4_1_board[1][1] = 1;
-t4_1_board[2][1] = 4;
-t4_1_board[3][1] = 5;
-t4_1_board[4][1] = 6;
-t4_1_board[5][1] = 7;
-t4_1_board[6][1] = 8;
-// Now (0,0) and (0,1) both are {2,3}.
-// We leave (0,2) empty, but it might naturally have 2 or 3 as candidates.
-// We want to show ELIMINATION from (0,2).
-const t4_1_cands = generateCandidates(t4_1_board);
+const s4_board = parseBoard(
+  `000456789
+000000000
+000000000
+000000000
+000000000
+000000000
+000000000
+000000000
+000000000`,
+);
+let s4_cands = generateCandidates(s4_board);
+s4_cands = overrideCandidates(s4_cands, [
+  { r: 0, c: 0, vals: [1, 2] },
+  { r: 0, c: 1, vals: [1, 2] },
+  { r: 0, c: 2, vals: [1, 2, 3] }, // Elim target
+  { r: 0, c: 3, vals: [3, 4, 5] },
+]);
+
+// 5. Hidden Pair
+// Base board for 5-10
+const base_board = parseBoard(`000000000\n`.repeat(9));
+let s5_cands = generateCandidates(base_board);
+// Row 0: {8,9} hidden in (0,0) and (0,1)
+s5_cands[0][0] = [1, 2, 8, 9];
+s5_cands[0][1] = [3, 4, 8, 9];
+s5_cands[0][2] = [1, 2, 3, 4];
+s5_cands[0][3] = [1, 2];
+s5_cands[0][4] = [3, 4];
+s5_cands[0][5] = [1, 5];
+s5_cands[0][6] = [2, 6];
+s5_cands[0][7] = [3, 7];
+s5_cands[0][8] = [4, 5];
+
+// 6. Naked Triple
+let s6_cands = generateCandidates(base_board);
+s6_cands[0][0] = [1, 2];
+s6_cands[0][1] = [2, 3];
+s6_cands[0][2] = [1, 3];
+// These 3 cells hold {1,2,3}.
+s6_cands[0][3] = [1, 2, 3, 4]; // Target: eliminate 1,2,3 -> 4
+s6_cands[0][4] = [4, 5];
+
+// 7. Hidden Triple
+let s7_cands = generateCandidates(base_board);
+// 1,2,3 only in col 0,1,2 of Row 0.
+s7_cands[0][0] = [1, 2, 4, 5];
+s7_cands[0][1] = [2, 3, 4, 5];
+s7_cands[0][2] = [1, 3, 6, 7];
+// Ensure 1,2,3 NOT elsewhere
+for (let i = 3; i < 9; i++) s7_cands[0][i] = [4, 5, 6, 7, 8, 9];
+
+// 8. X-Wing
+// Rows 1 and 4. Candidate '7'. Cols 2 and 6.
+let s8_cands = generateCandidates(base_board);
+// Setup Corners
+s8_cands[1][2] = [1, 7];
+s8_cands[1][6] = [2, 7];
+s8_cands[4][2] = [1, 7];
+s8_cands[4][6] = [2, 7];
+// Clear '7' from rest of these rows
+for (let c = 0; c < 9; c++) {
+  if (c !== 2 && c !== 6) {
+    s8_cands[1][c] = [1, 2];
+    s8_cands[4][c] = [3, 4];
+  }
+}
+// Target: Col 2, Row 0 contains '7', should be removed.
+s8_cands[0][2] = [3, 7, 8];
+
+// 9. Y-Wing
+let s9_cands = generateCandidates(base_board);
+s9_cands[0][0] = [1, 2]; // Pivot
+s9_cands[0][5] = [1, 3]; // Pincer A
+s9_cands[2][0] = [2, 3]; // Pincer B
+s9_cands[2][5] = [3, 4, 5]; // Target (sees both)
+
+// 10. Swordfish (5)
+let s10_cands = generateCandidates(base_board);
+const rows = [1, 4, 7];
+const cols = [2, 5, 8];
+// Place valid 5s
+rows.forEach(r => cols.forEach(c => (s10_cands[r][c] = [1, 5])));
+// Clear 5s from rest of rows
+rows.forEach(r => {
+  for (let c = 0; c < 9; c++) if (!cols.includes(c)) s10_cands[r][c] = [1, 2];
+});
+// Target: Row 0, Col 2 has 5
+s10_cands[0][2] = [1, 5, 9];
 
 export const TUTORIAL_DATA: { [key: string]: TutorialScenario[] } = {
   '1': [
-    // Naked Singles
     {
       id: 'naked-single-1',
-      title: 'Naked Single: Row Logic',
+      title: 'Naked Single',
       steps: [
         {
           message:
-            "Welcome! We've turned on 'Notes' (little numbers) for all empty cells. A 'Naked Single' is when a cell has only ONE note.",
-          board: t1_1_board,
-          candidates: t1_1_cands,
-          highlightCells: [],
+            'In this almost complete board, the last cell in the grid (bottom-right) is empty.',
+          board: s1_board,
+          candidates: s1_cands,
+          highlightCells: [{ r: 8, c: 8 }],
         },
         {
           message:
-            "Look at the last cell in the first row. It only has one note: '9'.",
-          board: t1_1_board,
-          candidates: t1_1_cands,
-          highlightCells: [{ r: 0, c: 8 }],
-          focusCell: { r: 0, c: 8 },
-        },
-        {
-          message: 'That means 9 MUST go there. Tap to fill it (simulated).',
-          board: (() => {
-            const b = t1_1_board.map(r => [...r]);
-            b[0][8] = 9;
-            return b;
-          })(),
-          candidates: generateCandidates(
-            (() => {
-              const b = t1_1_board.map(r => [...r]);
-              b[0][8] = 9;
-              return b;
-            })(),
-          ),
-          focusCell: { r: 0, c: 8 },
-        },
-      ],
-    },
-    {
-      id: 'naked-single-2',
-      title: 'Naked Single: Mixed Logic',
-      steps: [
-        {
-          message:
-            'In this board, notes are calculated automatically. Look for a cell with only one note.',
-          board: t1_2_board,
-          candidates: t1_2_cands,
-        },
-        {
-          message: "The center cell (highlighted) only has the note '5'.",
-          board: t1_2_board,
-          candidates: t1_2_cands,
-          highlightCells: [{ r: 4, c: 4 }],
-          focusCell: { r: 4, c: 4 },
-        },
-        {
-          message:
-            "All other numbers are blocked by neighbors. It's a Naked Single.",
-          board: (() => {
-            const b = t1_2_board.map(r => [...r]);
-            b[4][4] = 5;
-            return b;
-          })(),
-          candidates: generateCandidates(
-            (() => {
-              const b = t1_2_board.map(r => [...r]);
-              b[4][4] = 5;
-              return b;
-            })(),
-          ),
-          focusCell: { r: 4, c: 4 },
+            "The only missing number is 9. It's a Naked Single. Double-tap to fill.",
+          board: s1_board,
+          candidates: s1_cands,
+          action: { type: 'fill', value: 9 },
         },
       ],
     },
   ],
   '2': [
-    // Hidden Singles
     {
       id: 'hidden-single-1',
-      title: 'Hidden Single: Only Spot Left',
+      title: 'Hidden Single',
       steps: [
         {
-          message:
-            'Sometimes a cell has many notes, but one of those notes appears NOWHERE else in the row.',
-          board: t2_1_board,
-          candidates: t2_1_cands,
-        },
-        {
-          message: "Look at Row 3 (highlighted). Focus on the number '5'.",
-          board: t2_1_board,
-          candidates: t2_1_cands,
-          highlightCells: [
-            { r: 2, c: 0 },
-            { r: 2, c: 1 },
-            { r: 2, c: 2 },
-            { r: 2, c: 3 },
-            { r: 2, c: 4 },
-            { r: 2, c: 5 },
-            { r: 2, c: 6 },
-            { r: 2, c: 7 },
-            { r: 2, c: 8 },
-          ],
+          message: 'In this row, numbers 2-9 are already placed or blocked.',
+          board: s2_board,
+          candidates: s2_cands,
+          highlightCells: [{ r: 0, c: 0 }],
         },
         {
           message:
-            "Scan the notes in this row. You'll see '5' only appears in the notes of the very first cell.",
-          board: t2_1_board,
-          candidates: t2_1_cands,
-          focusCell: { r: 2, c: 0 },
-        },
-        {
-          message:
-            "Even though that cell also has '9' as a note, the '5' has no other home. So this cell MUST be 5.",
-          board: (() => {
-            const b = t2_1_board.map(r => [...r]);
-            b[2][0] = 5;
-            return b;
-          })(),
-          candidates: generateCandidates(
-            (() => {
-              const b = t2_1_board.map(r => [...r]);
-              b[2][0] = 5;
-              return b;
-            })(),
-          ),
-          highlightCells: [{ r: 2, c: 0 }],
+            "The first cell is the ONLY spot for '1'. It's a Hidden Single.",
+          board: s2_board,
+          candidates: s2_cands,
+          action: { type: 'fill', value: 1 },
         },
       ],
     },
   ],
   '3': [
-    // Locked Candidates
     {
       id: 'locked-1',
-      title: 'Locked Candidates (Pointing)',
+      title: 'Locked Candidates',
       steps: [
         {
           message:
-            "Look at the top-left box. Observe where '1' appears in the notes.",
-          board: t3_1_board,
-          candidates: t3_1_cands,
-          highlightCells: [
-            { r: 0, c: 0 },
-            { r: 0, c: 1 },
-            { r: 1, c: 0 },
-            { r: 1, c: 1 },
-            { r: 1, c: 2 },
-            { r: 2, c: 0 },
-            { r: 2, c: 1 },
-            { r: 2, c: 2 },
-          ],
-        },
-        {
-          message: "In this box, '1' is only possible in the top row (Row 1).",
-          board: t3_1_board,
-          candidates: t3_1_cands,
+            "Look at the top-left box. '1' is restricted to the top row.",
+          board: s3_board,
+          candidates: s3_cands,
           highlightCells: [
             { r: 0, c: 0 },
             { r: 0, c: 1 },
@@ -284,54 +284,50 @@ export const TUTORIAL_DATA: { [key: string]: TutorialScenario[] } = {
         },
         {
           message:
-            "If '1' MUST be in the top row of this box, it CANNOT be anywhere else in that same row outside the box.",
-          board: t3_1_board,
-          candidates: t3_1_cands,
-          highlightCells: [
-            { r: 0, c: 3 },
-            { r: 0, c: 4 },
-            { r: 0, c: 5 },
-            { r: 0, c: 6 },
-            { r: 0, c: 7 },
-            { r: 0, c: 8 },
-          ],
-        },
-        {
-          message:
-            "You can safely remove '1' from the notes of the highlighted cells.",
-          board: t3_1_board,
-          candidates: (() => {
-            // manually perform elimination for the visual
-            const c = JSON.parse(JSON.stringify(t3_1_cands));
-            for (let i = 3; i < 9; i++) {
-              c[0][i] = c[0][i].filter((n: number) => n !== 1);
-            }
-            return c;
-          })(),
-          highlightCells: [
-            { r: 0, c: 3 },
-            { r: 0, c: 4 },
-            { r: 0, c: 5 },
-            { r: 0, c: 6 },
-            { r: 0, c: 7 },
-            { r: 0, c: 8 },
-          ],
+            "It cannot appear elsewhere in Row 0. We can eliminate '1' from cell (0,4).",
+          board: s3_board,
+          candidates: s3_cands,
+          highlightCells: [{ r: 0, c: 4 }],
           action: { type: 'eliminate', value: 1 },
         },
       ],
     },
   ],
   '4': [
-    // Naked Pairs
     {
-      id: 'pair-1',
-      title: 'Naked Pair: Row',
+      id: 'naked-pair-1',
+      title: 'Naked Pair',
       steps: [
         {
           message:
-            'Look at the first two cells. They both contain exactly limits [2, 3].',
-          board: t4_1_board,
-          candidates: t4_1_cands, // Auto-generated candidates will show 2,3, and maybe others if I didn't constrain perfectly, but assume valid.
+            'Check the first two cells. They both contain exactly {1, 2}.',
+          board: s4_board,
+          candidates: s4_cands,
+          highlightCells: [
+            { r: 0, c: 0 },
+            { r: 0, c: 1 },
+          ],
+        },
+        {
+          message: 'This locks 1 and 2 here. Remove them from the third cell.',
+          board: s4_board,
+          candidates: s4_cands,
+          highlightCells: [{ r: 0, c: 2 }],
+          action: { type: 'eliminate', value: 1 },
+        },
+      ],
+    },
+  ],
+  '5': [
+    {
+      id: 'hidden-pair-1',
+      title: 'Hidden Pair',
+      steps: [
+        {
+          message:
+            'In Row 0, the numbers 8 and 9 ONLY appear in the first two highlighted cells.',
+          board: base_board,
+          candidates: s5_cands,
           highlightCells: [
             { r: 0, c: 0 },
             { r: 0, c: 1 },
@@ -339,26 +335,148 @@ export const TUTORIAL_DATA: { [key: string]: TutorialScenario[] } = {
         },
         {
           message:
-            'Since 2 and 3 must share these two cells, neither 2 nor 3 can appear elsewhere in this row.',
-          board: t4_1_board,
-          candidates: t4_1_cands,
+            'Since 8 and 9 must go here, eliminate all other notes (like 1,2,3,4) from these cells.',
+          board: base_board,
+          candidates: s5_cands,
+          action: { type: 'eliminate', value: 1 },
+        },
+      ],
+    },
+  ],
+  '6': [
+    {
+      id: 'naked-triple-1',
+      title: 'Naked Triple',
+      steps: [
+        {
+          message: 'First three cells have candidates {1,2}, {2,3}, {1,3}.',
+          board: base_board,
+          candidates: s6_cands,
           highlightCells: [
+            { r: 0, c: 0 },
+            { r: 0, c: 1 },
             { r: 0, c: 2 },
-            { r: 0, c: 3 } /* etc */,
           ],
         },
         {
           message:
-            'We remove 2 and 3 from the notes of all other cells in this row.',
-          board: t4_1_board,
-          candidates: (() => {
-            const c = JSON.parse(JSON.stringify(t4_1_cands));
-            for (let i = 2; i < 9; i++) {
-              c[0][i] = c[0][i].filter((n: number) => n !== 2 && n !== 3);
-            }
-            return c;
-          })(),
-          action: { type: 'eliminate', value: 2 },
+            'These 3 cells are reserved for 1, 2, 3. Remove 1,2,3 from the fourth cell.',
+          board: base_board,
+          candidates: s6_cands,
+          highlightCells: [{ r: 0, c: 3 }],
+          action: { type: 'eliminate', value: 1 },
+        },
+      ],
+    },
+  ],
+  '7': [
+    {
+      id: 'hidden-triple-1',
+      title: 'Hidden Triple',
+      steps: [
+        {
+          message:
+            'Candidates 1, 2, 3 appear ONLY in the first three cells of Row 0.',
+          board: base_board,
+          candidates: s7_cands,
+          highlightCells: [
+            { r: 0, c: 0 },
+            { r: 0, c: 1 },
+            { r: 0, c: 2 },
+          ],
+        },
+        {
+          message:
+            'They are hidden among other noise. We must remove non-(1,2,3) notes from these cells.',
+          board: base_board,
+          candidates: s7_cands,
+          action: { type: 'eliminate', value: 4 },
+        },
+      ],
+    },
+  ],
+  '8': [
+    {
+      id: 'x-wing-1',
+      title: 'X-Wing',
+      steps: [
+        {
+          message:
+            "Observe Rows 2 and 5. The number '7' appears ONLY in columns 3 and 7.",
+          board: base_board,
+          candidates: s8_cands,
+          highlightCells: [
+            { r: 1, c: 2 },
+            { r: 1, c: 6 },
+            { r: 4, c: 2 },
+            { r: 4, c: 6 },
+          ],
+        },
+        {
+          message:
+            "This X-pattern locks '7' into these columns. Eliminate '7' from Col 3 in Row 1.",
+          board: base_board,
+          candidates: s8_cands,
+          highlightCells: [{ r: 0, c: 2 }],
+          action: { type: 'eliminate', value: 7 },
+        },
+      ],
+    },
+  ],
+  '9': [
+    {
+      id: 'y-wing-1',
+      title: 'Y-Wing',
+      steps: [
+        {
+          message:
+            'Pivot (0,0) is {1,2}. Pincers are (0,5):{1,3} and (2,0):{2,3}.',
+          board: base_board,
+          candidates: s9_cands,
+          highlightCells: [
+            { r: 0, c: 0 },
+            { r: 0, c: 5 },
+            { r: 2, c: 0 },
+          ],
+        },
+        {
+          message:
+            "Cell (2,5) sees both Pincers. It cannot be '3' (the common Z value).",
+          board: base_board,
+          candidates: s9_cands,
+          highlightCells: [{ r: 2, c: 5 }],
+          action: { type: 'eliminate', value: 3 },
+        },
+      ],
+    },
+  ],
+  '10': [
+    {
+      id: 'swordfish-1',
+      title: 'Swordfish',
+      steps: [
+        {
+          message: "Candidate '5' in Rows 2, 5, 8 aligns in Cols 3, 6, 9.",
+          board: base_board,
+          candidates: s10_cands,
+          highlightCells: [
+            { r: 1, c: 2 },
+            { r: 1, c: 5 },
+            { r: 1, c: 8 },
+            { r: 4, c: 2 },
+            { r: 4, c: 5 },
+            { r: 4, c: 8 },
+            { r: 7, c: 2 },
+            { r: 7, c: 5 },
+            { r: 7, c: 8 },
+          ],
+        },
+        {
+          message: "Eliminate '5' from these columns in Row 1.",
+          board: base_board,
+          candidates: s10_cands,
+          highlightCells: [{ r: 0, c: 2 }],
+          action: { type: 'eliminate', value: 5 },
         },
       ],
     },

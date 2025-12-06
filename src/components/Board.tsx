@@ -61,6 +61,10 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     row: number;
     col: number;
   } | null>(null);
+  const [lastMovedCell, setLastMovedCell] = useState<{
+    row: number;
+    col: number;
+  } | null>(null);
   const [tutorMessage, setTutorMessage] = useState<{
     row: number;
     col: number;
@@ -138,6 +142,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     setShakingCell(null);
     setTutorMessage(null);
     setConflictingCell(null);
+    setLastMovedCell(null);
     setCompletedUnits([]);
     setIsSolved(false);
     setIsPaused(false);
@@ -197,6 +202,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     if (!conflict) {
       const completions = checkCompletion(newBoard, row, col);
       if (completions.length > 0) {
+        setLastMovedCell({ row, col });
         setCompletedUnits(completions);
         setTimeout(() => setCompletedUnits([]), 1500);
       }
@@ -435,6 +441,13 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
                         isInvalid={isInvalid}
                         shouldShake={shouldShake}
                         isSuccess={isSuccess}
+                        successDelay={
+                          isSuccess && lastMovedCell
+                            ? (Math.abs(rowIndex - lastMovedCell.row) +
+                                Math.abs(colIndex - lastMovedCell.col)) *
+                              50
+                            : 0
+                        }
                         isDarkMode={isDarkMode}
                         size={cellSize}
                       />

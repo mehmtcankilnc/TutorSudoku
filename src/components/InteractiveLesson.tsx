@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   useWindowDimensions,
   ScrollView,
+  Animated,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Cell } from './Cell';
@@ -16,6 +17,39 @@ interface InteractiveLessonProps {
   onComplete: () => void;
   isDarkMode: boolean;
 }
+
+const ProgressSegment: React.FC<{
+  filled: boolean;
+  isDarkMode: boolean;
+}> = ({ filled, isDarkMode }) => {
+  const widthAnim = React.useRef(new Animated.Value(filled ? 1 : 0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(widthAnim, {
+      toValue: filled ? 1 : 0,
+      duration: 400,
+      useNativeDriver: false,
+    }).start();
+  }, [filled]);
+
+  return (
+    <View
+      className={`h-2 rounded-full flex-1 overflow-hidden ${
+        isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
+      }`}
+    >
+      <Animated.View
+        style={{
+          width: widthAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0%', '100%'],
+          }),
+        }}
+        className="h-full bg-blue-500"
+      />
+    </View>
+  );
+};
 
 export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
   lesson,
@@ -147,15 +181,10 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
         {/* Progress Bar */}
         <View className="flex-row gap-2 mt-8 px-8 w-full justify-center">
           {lesson.steps.map((_, idx) => (
-            <View
+            <ProgressSegment
               key={idx}
-              className={`h-2 rounded-full flex-1 ${
-                idx <= currentStepIndex
-                  ? 'bg-blue-500'
-                  : isDarkMode
-                  ? 'bg-gray-700'
-                  : 'bg-gray-200'
-              }`}
+              filled={idx <= currentStepIndex}
+              isDarkMode={isDarkMode}
             />
           ))}
         </View>

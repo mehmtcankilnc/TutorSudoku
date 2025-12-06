@@ -12,6 +12,7 @@ interface CellProps {
   isInvalid?: boolean;
   shouldShake?: boolean;
   isSuccess?: boolean;
+  successDelay?: number;
   isDarkMode?: boolean;
   size?: number;
 }
@@ -28,10 +29,13 @@ export const Cell = React.memo<CellProps>(
     isInvalid = false,
     shouldShake = false,
     isSuccess = false,
+    successDelay = 0,
     isDarkMode = false,
     size = 40,
   }) => {
     const shakeAnim = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
+    const successAnim = useRef(new Animated.Value(0)).current;
 
     // Shake Animation (Wrong Move)
     useEffect(() => {
@@ -61,6 +65,40 @@ export const Cell = React.memo<CellProps>(
       }
     }, [shouldShake]);
 
+    // Success Wave Animation
+    useEffect(() => {
+      if (isSuccess) {
+        Animated.sequence([
+          Animated.delay(successDelay),
+          Animated.parallel([
+            Animated.sequence([
+              Animated.timing(scaleAnim, {
+                toValue: 1.1,
+                duration: 100,
+                useNativeDriver: true,
+              }),
+              Animated.timing(scaleAnim, {
+                toValue: 1,
+                duration: 100,
+                useNativeDriver: true,
+              }),
+            ]),
+            Animated.timing(successAnim, {
+              toValue: 1,
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start();
+      } else {
+        Animated.timing(successAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }).start();
+      }
+    }, [isSuccess, successDelay]);
+
     return (
       <TouchableOpacity
         onPress={onPress}
@@ -72,16 +110,12 @@ export const Cell = React.memo<CellProps>(
           style={{
             width: size,
             height: size,
-            transform: [{ translateX: shakeAnim }],
+            transform: [{ translateX: shakeAnim }, { scale: scaleAnim }],
           }}
-          className={`border items-center justify-center overflow-hidden 
+          className={`border items-center justify-center overflow-hidden relative
             ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}
             ${
-              isSuccess
-                ? isDarkMode
-                  ? 'bg-green-900 border-green-700'
-                  : 'bg-green-200 border-green-500 border-2'
-                : isSelected
+              isSelected
                 ? isDarkMode
                   ? 'bg-blue-800'
                   : 'bg-blue-300'
@@ -102,10 +136,19 @@ export const Cell = React.memo<CellProps>(
                 : 'bg-gray-100'
             }`}
         >
+          {/* Success Overlay */}
+          <Animated.View
+            style={{ opacity: successAnim }}
+            className={`absolute inset-0 z-0 ${
+              isDarkMode
+                ? 'bg-green-800 border-green-600'
+                : 'bg-green-400 border-green-600 border-2'
+            }`}
+          />
           {value !== null ? (
             <Text
               style={{ fontSize: size * 0.6 }}
-              className={`
+              className={`z-10 
                 ${
                   isEditable
                     ? isDarkMode
@@ -123,7 +166,7 @@ export const Cell = React.memo<CellProps>(
           ) : (
             candidates &&
             candidates.length > 0 && (
-              <View className="flex-row flex-wrap w-full h-full">
+              <View className="flex-row flex-wrap w-full h-full z-10">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
                   <View
                     key={num}

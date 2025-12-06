@@ -1,10 +1,60 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  Image,
+  ScrollView,
+} from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { setOnboardingComplete, UserState } from '../store/userSlice';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const AnimatedStepDot = ({
+  isActive,
+  isDarkMode,
+}: {
+  isActive: boolean;
+  isDarkMode: boolean;
+}) => {
+  const anim = React.useRef(new Animated.Value(isActive ? 1 : 0)).current;
+
+  React.useEffect(() => {
+    Animated.spring(anim, {
+      toValue: isActive ? 1 : 0,
+      useNativeDriver: false,
+      friction: 8,
+      tension: 40,
+    }).start();
+  }, [isActive]);
+
+  const width = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [8, 32],
+  });
+
+  const backgroundColor = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [
+      isDarkMode ? '#374151' : '#D1D5DB', // gray-700 : gray-300
+      isDarkMode ? '#60A5FA' : '#2563EB', // blue-400 : blue-600
+    ],
+  });
+
+  return (
+    <Animated.View
+      style={{
+        height: 8,
+        borderRadius: 4,
+        width,
+        backgroundColor,
+      }}
+    />
+  );
+};
 
 const StepIndicator = ({
   currentStep,
@@ -17,13 +67,10 @@ const StepIndicator = ({
 }) => (
   <View className="flex-row justify-center gap-2 mb-8 mt-4">
     {Array.from({ length: totalSteps }).map((_, index) => (
-      <View
+      <AnimatedStepDot
         key={index}
-        className={`h-2 rounded-full ${
-          index === currentStep
-            ? `w-8 ${isDarkMode ? 'bg-blue-400' : 'bg-blue-600'}`
-            : `w-2 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'}`
-        }`}
+        isActive={index === currentStep}
+        isDarkMode={isDarkMode}
       />
     ))}
   </View>
@@ -71,33 +118,41 @@ export const OnboardingScreen: React.FC = () => {
 
   const freqOptions = ['Every day', '3-4 days a week', 'Once a week', 'Rarely'];
 
-  const handleNext = async () => {
-    if (step === 0) setStep(1);
-    else if (step === 1) setStep(2);
-    else if (step === 2) {
-      const finalSkill = skillLevel || 'beginner';
-      const finalFreq = frequency || 'Once a week';
-
-      try {
-        await AsyncStorage.setItem(
-          'user_onboarding',
-          JSON.stringify({
-            isOnboarded: true,
-            skillLevel: finalSkill,
-            playFrequency: finalFreq,
-          }),
-        );
-      } catch (e) {
-        console.error('Failed to save onboarding', e);
-      }
-
-      dispatch(
-        setOnboardingComplete({
-          skillLevel: finalSkill,
-          playFrequency: finalFreq,
+  const completeOnboarding = async (
+    skill: string = 'beginner',
+    freq: string = 'Once a week',
+  ) => {
+    try {
+      await AsyncStorage.setItem(
+        'user_onboarding',
+        JSON.stringify({
+          isOnboarded: true,
+          skillLevel: skill,
+          playFrequency: freq,
         }),
       );
+    } catch (e) {
+      console.error('Failed to save onboarding', e);
     }
+
+    dispatch(
+      setOnboardingComplete({
+        skillLevel: skill as UserState['skillLevel'],
+        playFrequency: freq,
+      }),
+    );
+  };
+
+  const handleNext = async () => {
+    if (step < 4) setStep(step + 1);
+    else if (step === 4) setStep(5);
+    else if (step === 5) {
+      completeOnboarding(skillLevel || 'beginner', frequency || 'Once a week');
+    }
+  };
+
+  const handleSkip = () => {
+    completeOnboarding('beginner', 'Once a week');
   };
 
   const handleBack = () => {
@@ -142,9 +197,83 @@ export const OnboardingScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         );
-      case 1: // Skill
+      case 1: // Feature: Scan
         return (
-          <View className="flex-1 p-6">
+          <View className="flex-1 p-6 items-center justify-center">
+            {/* Feature Image Frame */}
+            <Image
+              source={require('../assets/scan_feature.jpeg')}
+              className="w-80 h-80 mb-8"
+              resizeMode="contain"
+            />
+            <Text
+              className={`text-3xl font-extrabold text-center mb-4 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Scan & Solve
+            </Text>
+            <Text
+              className={`text-lg text-center ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              Instantly digitize your favorite paper puzzles just by taking a
+              photo.
+            </Text>
+          </View>
+        );
+      case 2: // Feature: Learn
+        return (
+          <View className="flex-1 p-6 items-center justify-center">
+            <Image
+              source={require('../assets/tutorial_feature.jpeg')}
+              className="w-80 h-80 mb-8 rounded-3xl"
+              resizeMode="contain"
+            />
+            <Text
+              className={`text-3xl font-extrabold text-center mb-4 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Interactive Tutorials
+            </Text>
+            <Text
+              className={`text-lg text-center ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              Master advanced techniques with step-by-step guided lessons.
+            </Text>
+          </View>
+        );
+      case 3: // Feature: Hints
+        return (
+          <View className="flex-1 p-6 items-center justify-center">
+            <Image
+              source={require('../assets/hint_feature.jpeg')}
+              className="w-80 h-80 mb-8 rounded-3xl"
+              resizeMode="contain"
+            />
+            <Text
+              className={`text-3xl font-extrabold text-center mb-4 ${
+                isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}
+            >
+              Smart Hints
+            </Text>
+            <Text
+              className={`text-lg text-center ${
+                isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}
+            >
+              Don't just get the answer. Understand the logic behind every move.
+            </Text>
+          </View>
+        );
+      case 4: // Skill
+        return (
+          <View className="flex-1 p-6 pt-24">
             <Text
               className={`text-3xl font-bold mb-2 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
@@ -238,9 +367,9 @@ export const OnboardingScreen: React.FC = () => {
             </View>
           </View>
         );
-      case 2: // Frequency
+      case 5: // Frequency
         return (
-          <View className="flex-1 p-6">
+          <View className="flex-1 p-6 pt-24">
             <Text
               className={`text-3xl font-bold mb-2 ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
@@ -301,13 +430,33 @@ export const OnboardingScreen: React.FC = () => {
 
   return (
     <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View className="flex-1">{renderContent()}</View>
+      <View className="absolute top-12 right-6 z-50">
+        <TouchableOpacity
+          onPress={handleSkip}
+          className={`px-5 py-2.5 rounded-full ${
+            isDarkMode
+              ? 'bg-gray-800 border border-gray-700'
+              : 'bg-white border border-gray-200'
+          } shadow-md elevation-5`}
+        >
+          <Text
+            className={`font-bold text-sm ${
+              isDarkMode ? 'text-blue-400' : 'text-blue-600'
+            }`}
+          >
+            Skip
+          </Text>
+        </TouchableOpacity>
+      </View>
+      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
+        {renderContent()}
+      </ScrollView>
       {/* Footer Navigation */}
       {step > 0 && (
         <View className="p-6">
           <StepIndicator
             currentStep={step}
-            totalSteps={3}
+            totalSteps={6}
             isDarkMode={isDarkMode}
           />
           <View className="flex-row gap-4">
@@ -327,19 +476,19 @@ export const OnboardingScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               disabled={
-                (step === 1 && skillLevel === null) ||
-                (step === 2 && frequency === null)
+                (step === 4 && skillLevel === null) ||
+                (step === 5 && frequency === null)
               }
               onPress={handleNext}
               className={`flex-1 py-4 rounded-xl items-center bg-blue-600 shadow-lg shadow-blue-500/30 ${
-                (step === 1 && skillLevel === null) ||
-                (step === 2 && frequency === null)
+                (step === 4 && skillLevel === null) ||
+                (step === 5 && frequency === null)
                   ? 'opacity-50'
                   : 'opacity-100'
               }`}
             >
               <Text className={`font-bold text-white`}>
-                {step === 2 ? 'Complete' : 'Next'}
+                {step === 5 ? 'Complete' : 'Next'}
               </Text>
             </TouchableOpacity>
           </View>

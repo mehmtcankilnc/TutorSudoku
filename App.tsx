@@ -19,22 +19,43 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { hydrateUser } from './src/store/userSlice';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, View, useColorScheme } from 'react-native';
+import { setDarkMode } from './src/store/themeSlice';
+import { setCompletedTutorials } from './src/store/progressSlice';
 
 const Tab = createBottomTabNavigator();
 const MainApp = () => {
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const isOnboarded = useSelector((state: RootState) => state.user.isOnboarded);
+  const systemScheme = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const checkUser = async () => {
       try {
+        // Load Theme Preference
+        const themeData = await AsyncStorage.getItem('user_theme');
+        if (themeData !== null) {
+          const isDark = JSON.parse(themeData);
+          dispatch(setDarkMode(isDark));
+        } else {
+          // Fallback to system preference
+          dispatch(setDarkMode(systemScheme === 'dark'));
+        }
+
+        // Load Onboarding Data
         const userData = await AsyncStorage.getItem('user_onboarding');
         if (userData) {
           const parsed = JSON.parse(userData);
           dispatch(hydrateUser(parsed));
+        }
+
+        // Load Progress Data
+        const progressData = await AsyncStorage.getItem('user_progress');
+        if (progressData) {
+          const parsedProgress = JSON.parse(progressData);
+          dispatch(setCompletedTutorials(parsedProgress));
         }
       } catch (e) {
         console.error(e);
@@ -114,7 +135,10 @@ const MainApp = () => {
         style={{ flex: 1, backgroundColor: isDarkMode ? '#111827' : '#ffffff' }}
         edges={['top', 'bottom']}
       >
-        <NavigationContainer theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
+        <NavigationContainer
+          theme={isDarkMode ? MyDarkTheme : MyLightTheme}
+          key={isDarkMode ? 'dark' : 'light'}
+        >
           <Tab.Navigator
             screenOptions={{
               headerShown: false,
