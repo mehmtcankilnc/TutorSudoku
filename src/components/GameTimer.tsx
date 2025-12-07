@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 interface GameTimerProps {
   isRunning: boolean;
@@ -28,7 +29,7 @@ export const GameTimer: React.FC<GameTimerProps> = ({
       interval = setInterval(() => {
         setSeconds(prev => {
           const next = prev + 1;
-          onTimeUpdate?.(next); // Notify parent if needed, but don't re-render parent
+          onTimeUpdate?.(next);
           return next;
         });
       }, 1000);
@@ -47,11 +48,16 @@ export const GameTimer: React.FC<GameTimerProps> = ({
 
   return (
     <View className="flex-row items-center">
-      <MaterialCommunityIcons name="clock-outline" size={24} color="#3B82F6" />
+      <MaterialCommunityIcons
+        name="clock-outline"
+        size={wp(6)}
+        color="#3B82F6"
+      />
       <Text
-        className={`font-bold text-xl ml-1 ${
+        className={`font-bold ${
           isDarkMode ? 'text-blue-400' : 'text-blue-900'
         }`}
+        style={{ marginLeft: wp(1), fontSize: wp(5) }}
       >
         {formatTime(seconds)}
       </Text>

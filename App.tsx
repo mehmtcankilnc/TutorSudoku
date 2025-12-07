@@ -1,4 +1,9 @@
+/* eslint-disable react/no-unstable-nested-components */
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable react-hooks/exhaustive-deps */
 import './global.css';
+import './src/i18n';
+import { useTranslation } from 'react-i18next';
 import React from 'react';
 import {
   NavigationContainer,
@@ -22,9 +27,11 @@ import { hydrateUser } from './src/store/userSlice';
 import { ActivityIndicator, View, useColorScheme } from 'react-native';
 import { setDarkMode } from './src/store/themeSlice';
 import { setCompletedTutorials } from './src/store/progressSlice';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 const Tab = createBottomTabNavigator();
 const MainApp = () => {
+  const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const isOnboarded = useSelector((state: RootState) => state.user.isOnboarded);
@@ -49,6 +56,12 @@ const MainApp = () => {
         if (userData) {
           const parsed = JSON.parse(userData);
           dispatch(hydrateUser(parsed));
+        }
+
+        // Load Language Preference
+        const langData = await AsyncStorage.getItem('user_language');
+        if (langData) {
+          i18n.changeLanguage(langData);
         }
 
         // Load Progress Data
@@ -143,8 +156,6 @@ const MainApp = () => {
             screenOptions={{
               headerShown: false,
               tabBarStyle: {
-                paddingBottom: 8,
-                paddingTop: 8,
                 backgroundColor: isDarkMode ? '#1F2937' : '#ffffff',
                 borderTopWidth: 1,
                 borderTopColor: isDarkMode ? '#374151' : '#f3f4f6',
@@ -152,7 +163,7 @@ const MainApp = () => {
                 shadowColor: isDarkMode ? '#000000' : '#000000',
               },
               tabBarLabelStyle: {
-                fontSize: 12,
+                fontSize: wp(3.5),
                 fontWeight: '600',
               },
               tabBarActiveTintColor: '#3B82F6',
@@ -163,11 +174,12 @@ const MainApp = () => {
               name="Play"
               component={GameScreen}
               options={{
-                tabBarIcon: ({ color, size }) => (
+                tabBarLabel: t('navPlay'),
+                tabBarIcon: ({ color }) => (
                   <MaterialCommunityIcons
                     name="puzzle-outline"
                     color={color}
-                    size={28}
+                    size={wp(8)}
                   />
                 ),
               }}
@@ -176,11 +188,12 @@ const MainApp = () => {
               name="Scan"
               component={ScanScreen}
               options={{
-                tabBarIcon: ({ color, size }) => (
+                tabBarLabel: t('navScan'),
+                tabBarIcon: ({ color }) => (
                   <MaterialCommunityIcons
                     name="camera-outline"
                     color={color}
-                    size={28}
+                    size={wp(8)}
                   />
                 ),
               }}
@@ -189,11 +202,12 @@ const MainApp = () => {
               name="Learn"
               component={TutorialsScreen}
               options={{
-                tabBarIcon: ({ color, size }) => (
+                tabBarLabel: t('navLearn'),
+                tabBarIcon: ({ color }) => (
                   <MaterialCommunityIcons
                     name="school-outline"
                     color={color}
-                    size={28}
+                    size={wp(8)}
                   />
                 ),
               }}

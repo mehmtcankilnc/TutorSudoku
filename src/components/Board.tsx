@@ -1,11 +1,11 @@
+/* eslint-disable react-native/no-inline-styles */
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { View, Text, TouchableOpacity } from 'react-native';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  useWindowDimensions,
-  Alert,
-} from 'react-native';
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen';
 import { useIsFocused } from '@react-navigation/native';
 import { Cell } from './Cell';
 import {
@@ -13,7 +13,6 @@ import {
   isValidMove,
   BoardType,
   getHint,
-  Hint,
   checkConflict,
   checkCompletion,
   isGameSolved,
@@ -28,19 +27,25 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store/store';
 import { recordWin } from '../store/userSlice';
+
 import { useAlert } from '../context/AlertContext';
 
 interface BoardProps {
   scannedBoard?: (number | null)[][];
+  isSettingsOpen?: boolean;
 }
 
-export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
+export const Board: React.FC<BoardProps> = ({
+  scannedBoard,
+  isSettingsOpen = false,
+}) => {
   const isFocused = useIsFocused();
   const dispatch = useDispatch();
   const { showAlert } = useAlert();
-  const { width } = useWindowDimensions();
-  const boardPadding = 20;
-  const cellSize = Math.floor((width - boardPadding * 2) / 9);
+  const { t } = useTranslation();
+
+  const totalBoardWidth = wp('85%');
+  const cellSize = Math.floor(totalBoardWidth / 9);
 
   const { isDarkMode, gamesWon } = useSelector((state: RootState) => ({
     isDarkMode: state.theme.isDarkMode,
@@ -49,6 +54,8 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
 
   const [initialBoard, setInitialBoard] = useState<BoardType>([]);
   const [board, setBoard] = useState<BoardType>([]);
+  const [notes, setNotes] = useState<number[][][]>([]);
+
   const [selectedCell, setSelectedCell] = useState<{
     row: number;
     col: number;
@@ -68,7 +75,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
   const [tutorMessage, setTutorMessage] = useState<{
     row: number;
     col: number;
-    text: string;
+    text: { key: string; params?: any };
   } | null>(null);
   const [conflictingCell, setConflictingCell] = useState<{
     row: number;
@@ -83,14 +90,13 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
 
   const [isTimerRunning, setIsTimerRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isNoteMode, setIsNoteMode] = useState(false);
 
-  /* Timer is now handled in GameTimer, but we keep track of final time for Results */
   const timerRef = React.useRef(0);
   const [isDifficultyModalVisible, setIsDifficultyModalVisible] =
     useState(false);
   const [gameKey, setGameKey] = useState(0);
 
-  // Game Stage Management
   const [gameState, setGameState] = useState<'selecting' | 'playing'>(
     'selecting',
   );
@@ -103,7 +109,12 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
       const validBoard = JSON.parse(JSON.stringify(scannedBoard));
       setInitialBoard(validBoard);
       setBoard(JSON.parse(JSON.stringify(validBoard)));
-      // Reset timer ref
+      setNotes(
+        Array(9)
+          .fill(null)
+          .map(() => Array(9).fill([])),
+      );
+
       timerRef.current = 0;
       setGameKey(prev => prev + 1);
       setIsSolved(false);
@@ -111,11 +122,10 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
       setHintCount(0);
       setIsTimerRunning(true);
       setIsPaused(false);
-      // Mode
+      setIsNoteMode(false);
       setCurrentDifficulty('easy');
       setGameState('playing');
     } else {
-      // If simply loading Board without params, we show selection
       setGameState('selecting');
     }
   }, [scannedBoard]);
@@ -137,6 +147,12 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
 
     setInitialBoard(newBoard.map(row => [...row]));
     setBoard(newBoard.map(row => [...row]));
+    setNotes(
+      Array(9)
+        .fill(null)
+        .map(() => Array(9).fill([])),
+    );
+
     setSelectedCell(null);
     setHighlightedCell(null);
     setShakingCell(null);
@@ -146,14 +162,13 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     setCompletedUnits([]);
     setIsSolved(false);
     setIsPaused(false);
+    setIsNoteMode(false);
     setMistakeCount(0);
     setHintCount(0);
-    // Reset timer
     timerRef.current = 0;
     setGameKey(prev => prev + 1);
     setIsTimerRunning(true);
 
-    // Update Flow
     setCurrentDifficulty(difficulty);
     setGameState('playing');
   };
@@ -168,7 +183,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
   };
 
   const handleCellPress = (row: number, col: number) => {
-    if (isSolved || isPaused) return;
+    if (isSolved || isPaused || isSettingsOpen) return;
 
     setSelectedCell({ row, col });
     setHighlightedCell(null);
@@ -177,14 +192,35 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
   };
 
   const handleNumberPress = (num: number) => {
-    if (!selectedCell || isSolved || isPaused) return;
+    if (!selectedCell || isSolved || isPaused || isSettingsOpen) return;
 
     const { row, col } = selectedCell;
     if (initialBoard[row][col] !== null) return;
 
+    if (isNoteMode) {
+      if (board[row][col] !== null) return;
+
+      setNotes(prev => {
+        const newNotes = [...prev];
+        newNotes[row] = [...prev[row]];
+        const currentNotes = newNotes[row][col];
+        if (currentNotes.includes(num)) {
+          newNotes[row][col] = currentNotes.filter(n => n !== num);
+        } else {
+          newNotes[row][col] = [...currentNotes, num].sort();
+        }
+        return newNotes;
+      });
+      return;
+    }
+
     const conflict = checkConflict(board, row, col, num);
     if (conflict) {
-      setTutorMessage({ row, col, text: conflict.message });
+      setTutorMessage({
+        row,
+        col,
+        text: { key: conflict.key, params: conflict.params },
+      });
       setConflictingCell(conflict.conflictingCell);
       setShakingCell({ row, col });
       setMistakeCount(prev => prev + 1);
@@ -199,6 +235,14 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     newBoard[row][col] = num;
 
     setBoard(newBoard);
+
+    setNotes(prev => {
+      const newNotes = [...prev];
+      newNotes[row] = [...prev[row]];
+      newNotes[row][col] = [];
+      return newNotes;
+    });
+
     if (!conflict) {
       const completions = checkCompletion(newBoard, row, col);
       if (completions.length > 0) {
@@ -210,14 +254,14 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
       if (isGameSolved(newBoard)) {
         setIsSolved(true);
         setIsTimerRunning(false);
-        // Record Win!
+
         dispatch(recordWin(currentDifficulty));
       }
     }
   };
 
   const handleClearPress = () => {
-    if (!selectedCell || isPaused) return;
+    if (!selectedCell || isPaused || isSettingsOpen) return;
 
     const { row, col } = selectedCell;
     if (initialBoard[row][col] !== null) return;
@@ -227,10 +271,17 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
     newBoard[row][col] = null;
     setBoard(newBoard);
     setTutorMessage(null);
+
+    setNotes(prev => {
+      const newNotes = [...prev];
+      newNotes[row] = [...prev[row]];
+      newNotes[row][col] = [];
+      return newNotes;
+    });
   };
 
   const handleHintPress = () => {
-    if (isSolved || isPaused) return;
+    if (isSolved || isPaused || isSettingsOpen) return;
 
     setHintCount(prev => prev + 1);
     const hint = getHint(board);
@@ -241,16 +292,13 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
         setTutorMessage({
           row: hint.cell.row,
           col: hint.cell.col,
-          text: hint.message,
+          text: { key: hint.key, params: hint.params },
         });
       } else {
-        showAlert('Hint', hint.message);
+        showAlert(t('hintHeader'), t(hint.key, hint.params));
       }
     } else {
-      showAlert(
-        'Good Job',
-        'The board looks solved or no obvious moves found!',
-      );
+      showAlert(t('goodJob'), t('boardSolved'));
     }
   };
 
@@ -267,7 +315,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
   if (board.length === 0) {
     return (
       <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
+        <Text>{t('loading')}</Text>
       </View>
     );
   }
@@ -289,11 +337,20 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
           onNewGame={handleReturnToHome}
         />
       )}
-      <View className="flex-row justify-between w-full px-4 mb-4 items-center">
-        <View className="flex-row gap-6">
+      <View
+        className="flex-row justify-between w-full items-center"
+        style={{ paddingHorizontal: wp(4), marginBottom: hp(1) }}
+      >
+        <View className="flex-row" style={{ gap: wp(6) }}>
           <GameTimer
             key={gameKey}
-            isRunning={isTimerRunning && !isPaused && !isSolved && isFocused}
+            isRunning={
+              isTimerRunning &&
+              !isPaused &&
+              !isSolved &&
+              !isSettingsOpen &&
+              isFocused
+            }
             isDarkMode={isDarkMode}
             initialTime={0}
             onTimeUpdate={t => {
@@ -303,33 +360,38 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
           <View className="flex-row items-center">
             <MaterialCommunityIcons
               name="alert-circle-outline"
-              size={24}
+              size={wp(6)}
               color="#EF4444"
             />
-            <Text className="text-red-500 font-bold text-xl ml-1">
+            <Text
+              className="text-red-500 font-bold"
+              style={{ marginLeft: wp(1), fontSize: wp(5) }}
+            >
               {mistakeCount}
             </Text>
           </View>
           <View className="flex-row items-center">
             <MaterialCommunityIcons
               name="lightbulb-on-outline"
-              size={24}
+              size={wp(6)}
               color="#EAB308"
             />
-            <Text className="text-yellow-600 font-bold text-xl ml-1">
+            <Text
+              className="text-yellow-600 font-bold"
+              style={{ marginLeft: wp(1), fontSize: wp(5) }}
+            >
               {hintCount}
             </Text>
           </View>
         </View>
         <TouchableOpacity
           onPress={() => setIsPaused(!isPaused)}
-          className={`p-2 rounded-full ${
-            isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
-          }`}
+          className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+          style={{ padding: wp(2), borderRadius: 9999 }}
         >
           <MaterialCommunityIcons
             name={isPaused ? 'play' : 'pause'}
-            size={28}
+            size={wp(7)}
             color={isDarkMode ? '#E5E7EB' : '#4B5563'}
           />
         </TouchableOpacity>
@@ -337,30 +399,52 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
       <View className="relative">
         {isPaused && (
           <View
-            className={`absolute inset-0 z-50 items-center justify-center rounded-xl border-4 ${
+            className={`absolute inset-0 z-50 items-center justify-center border-4 ${
               isDarkMode
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
+            style={{ borderRadius: wp(5), gap: wp(3) }}
           >
             <Text
-              className={`text-4xl font-bold mb-4 ${
+              className={`text-4xl font-bold ${
                 isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}
+              style={{ fontSize: wp(10) }}
             >
-              PAUSED
+              {t('paused')}
             </Text>
             <TouchableOpacity
               onPress={() => setIsPaused(false)}
-              className="bg-blue-500 px-8 py-3 rounded-full"
+              className="bg-blue-500"
+              style={{
+                paddingHorizontal: wp(7),
+                paddingVertical: wp(3),
+                borderRadius: 9999,
+              }}
             >
-              <Text className="text-white font-bold text-lg">Resume</Text>
+              <Text
+                className="text-white font-bold"
+                style={{ fontSize: wp(5) }}
+              >
+                {t('resume')}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleReturnToHome}
-              className="mt-4 bg-red-500 px-8 py-3 rounded-full"
+              className="bg-red-500"
+              style={{
+                paddingHorizontal: wp(7),
+                paddingVertical: wp(3),
+                borderRadius: 9999,
+              }}
             >
-              <Text className="text-white font-bold text-lg">Exit Game</Text>
+              <Text
+                className="text-white font-bold"
+                style={{ fontSize: wp(5) }}
+              >
+                {t('exitGame')}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -426,6 +510,12 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
                     }
                     return false;
                   });
+
+                  const currentCandidates =
+                    notes.length > rowIndex && notes[rowIndex].length > colIndex
+                      ? notes[rowIndex][colIndex]
+                      : [];
+
                   return (
                     <View
                       key={`${rowIndex}-${colIndex}`}
@@ -433,6 +523,7 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
                     >
                       <Cell
                         value={cellValue}
+                        candidates={currentCandidates}
                         onPress={() => handleCellPress(rowIndex, colIndex)}
                         isSelected={isSelected}
                         isRelated={isRelated}
@@ -456,7 +547,12 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
                       )}
                       {showBubble && tutorMessage && (
                         <TutorBubble
-                          message={tutorMessage.text}
+                          message={
+                            t(
+                              tutorMessage.text.key,
+                              tutorMessage.text.params,
+                            ) as string
+                          }
                           onDismiss={() => setTutorMessage(null)}
                           position={rowIndex < 4 ? 'below' : 'above'}
                           align={colIndex < 4 ? 'left' : 'right'}
@@ -472,38 +568,80 @@ export const Board: React.FC<BoardProps> = ({ scannedBoard }) => {
       </View>
       <NumberPad
         onNumberPress={handleNumberPress}
-        onClearPress={handleClearPress}
         completedNumbers={completedNumbers}
         isDarkMode={isDarkMode}
       />
-      <View className="flex-row gap-12 mt-8">
+      <View className="flex-row" style={{ gap: wp(8), marginTop: wp(2) }}>
+        <TouchableOpacity
+          onPress={() => setIsNoteMode(!isNoteMode)}
+          className={`items-center justify-center rounded-full active:opacity-60 relative
+             ${
+               isNoteMode
+                 ? isDarkMode
+                   ? 'bg-blue-900 border border-blue-500'
+                   : 'bg-blue-100 border border-blue-500'
+                 : 'bg-transparent'
+             }
+          `}
+          style={{ padding: wp(3) }}
+        >
+          <MaterialCommunityIcons
+            name="pencil"
+            size={wp(8)}
+            color={
+              isDarkMode
+                ? isNoteMode
+                  ? '#60A5FA'
+                  : '#9CA3AF'
+                : isNoteMode
+                ? '#2563EB'
+                : '#4B5563'
+            }
+          />
+          <View
+            className={`absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center
+               ${
+                 isNoteMode
+                   ? isDarkMode
+                     ? 'bg-blue-500'
+                     : 'bg-blue-600'
+                   : 'opacity-0'
+               }
+           `}
+          >
+            <Text className="text-white text-xs font-bold">ON</Text>
+          </View>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={handleHintPress}
-          className="items-center justify-center p-3 rounded-full active:opacity-60"
+          className="items-center justify-center rounded-full active:opacity-60"
+          style={{ padding: wp(3) }}
         >
           <MaterialCommunityIcons
             name="lightbulb-on-outline"
-            size={32}
+            size={wp(8)}
             color={isDarkMode ? '#FCD34D' : '#EAB308'}
           />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleClearPress}
-          className="items-center justify-center p-3 rounded-full active:opacity-60"
+          className="items-center justify-center rounded-full active:opacity-60"
+          style={{ padding: wp(3) }}
         >
           <MaterialCommunityIcons
             name="backspace-outline"
-            size={32}
+            size={wp(8)}
             color={isDarkMode ? '#F87171' : '#EF4444'}
           />
         </TouchableOpacity>
         <TouchableOpacity
           onPress={handleNewGamePress}
-          className="items-center justify-center p-3 rounded-full active:opacity-60"
+          className="items-center justify-center rounded-full active:opacity-60"
+          style={{ padding: wp(3) }}
         >
           <MaterialCommunityIcons
             name="refresh"
-            size={32}
+            size={wp(8)}
             color={isDarkMode ? '#9CA3AF' : '#4B5563'}
           />
         </TouchableOpacity>

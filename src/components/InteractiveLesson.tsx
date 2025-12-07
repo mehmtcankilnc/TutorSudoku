@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable react-hooks/exhaustive-deps */
+import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
   TouchableOpacity,
-  useWindowDimensions,
   ScrollView,
   Animated,
 } from 'react-native';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Cell } from './Cell';
 import { TutorialScenario } from '../data/TutorialData';
@@ -34,9 +37,10 @@ const ProgressSegment: React.FC<{
 
   return (
     <View
-      className={`h-2 rounded-full flex-1 overflow-hidden ${
+      className={`rounded-full flex-1 overflow-hidden ${
         isDarkMode ? 'bg-gray-700' : 'bg-gray-200'
       }`}
+      style={{ height: wp(2) }}
     >
       <Animated.View
         style={{
@@ -57,10 +61,11 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
   onComplete,
   isDarkMode,
 }) => {
+  const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const { width } = useWindowDimensions();
-  const boardPadding = 20;
-  const cellSize = Math.floor((width - boardPadding * 2 - 16) / 9);
+
+  const totalWidth = wp('85%');
+  const cellSize = Math.floor((totalWidth - 16) / 9);
 
   const currentStep = lesson.steps[currentStepIndex];
   const isLastStep = currentStepIndex === lesson.steps.length - 1;
@@ -82,32 +87,39 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
   return (
     <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
       {/* Header */}
-      <View className="flex-row items-center justify-between px-4 py-4 border-b border-gray-200 dark:border-gray-700">
-        <TouchableOpacity onPress={onClose} className="p-2">
+      <View
+        className="flex-row items-center justify-center border-b border-gray-200 dark:border-gray-700"
+        style={{ padding: wp(4) }}
+      >
+        <TouchableOpacity
+          onPress={onClose}
+          style={{ position: 'absolute', left: wp(5) }}
+        >
           <MaterialCommunityIcons
             name="close"
-            size={24}
+            size={wp(6)}
             color={isDarkMode ? '#9CA3AF' : '#6B7280'}
           />
         </TouchableOpacity>
         <Text
-          className={`text-lg font-bold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}
+          className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+          style={{ fontSize: wp(5) }}
         >
-          {lesson.title}
+          {t(lesson.title)}
         </Text>
-        <View style={{ width: 40 }} />
       </View>
-
       <ScrollView
         className="flex-1"
-        contentContainerStyle={{ alignItems: 'center', paddingVertical: 20 }}
+        contentContainerStyle={{ alignItems: 'center', paddingVertical: wp(4) }}
       >
         {/* The Board */}
         <View
-          style={{ width: cellSize * 9 + 8, height: cellSize * 9 + 8 }}
-          className={`border-2 mb-6 ${
+          style={{
+            width: cellSize * 9 + 8,
+            height: cellSize * 9 + 8,
+            marginBottom: wp(4),
+          }}
+          className={`border-2 ${
             isDarkMode ? 'border-gray-600' : 'border-black'
           }`}
         >
@@ -159,27 +171,37 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
             </View>
           ))}
         </View>
-
         {/* Instruction Bubble */}
         <View
-          className={`mx-4 mb-6 p-4 rounded-xl border-l-4 w-[90%] ${
+          className={`border-l-4 ${
             isDarkMode
               ? 'bg-blue-900/20 border-blue-500'
               : 'bg-blue-50 border-blue-500'
           }`}
-          style={{ minHeight: 100, justifyContent: 'center' }}
+          style={{
+            minHeight: wp(10),
+            justifyContent: 'center',
+            marginHorizontal: wp(4),
+            marginBottom: wp(4),
+            padding: wp(4),
+            borderRadius: wp(3),
+            width: wp(90),
+          }}
         >
           <Text
-            className={`text-base text-center ${
+            className={`text-center ${
               isDarkMode ? 'text-blue-100' : 'text-blue-900'
             }`}
+            style={{ fontSize: wp(3.5) }}
           >
-            {currentStep.message}
+            {t(currentStep.message)}
           </Text>
         </View>
-
         {/* Progress Bar */}
-        <View className="flex-row gap-2 mt-8 px-8 w-full justify-center">
+        <View
+          className="flex-row first-line:w-full justify-center"
+          style={{ gap: wp(2), paddingHorizontal: wp(8) }}
+        >
           {lesson.steps.map((_, idx) => (
             <ProgressSegment
               key={idx}
@@ -189,40 +211,41 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
           ))}
         </View>
       </ScrollView>
-
       {/* Controls */}
       <View
-        className={`px-6 py-6 border-t ${
+        className={`border-t ${
           isDarkMode ? 'border-gray-800' : 'border-gray-100'
         }`}
+        style={{ paddingHorizontal: wp(6), paddingVertical: wp(2) }}
       >
         <View className="flex-row justify-between">
           <TouchableOpacity
             onPress={handlePrev}
             disabled={currentStepIndex === 0}
-            className={`px-6 py-3 rounded-full border ${
+            className={`rounded-full border ${
               currentStepIndex === 0
                 ? 'opacity-0'
                 : isDarkMode
                 ? 'border-gray-600'
                 : 'border-gray-300'
             }`}
+            style={{ paddingHorizontal: wp(6), paddingVertical: wp(3) }}
           >
             <Text
               className={`font-bold ${
                 isDarkMode ? 'text-white' : 'text-gray-900'
               }`}
             >
-              Back
+              {t('back')}
             </Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             onPress={handleNext}
-            className="px-8 py-3 rounded-full bg-blue-500 shadow-lg shadow-blue-500/30"
+            className="rounded-full bg-blue-500 shadow-lg shadow-blue-500/30"
+            style={{ paddingHorizontal: wp(6), paddingVertical: wp(3) }}
           >
             <Text className="text-white font-bold">
-              {isLastStep ? 'Finish' : 'Next'}
+              {isLastStep ? t('finish') : t('next')}
             </Text>
           </TouchableOpacity>
         </View>

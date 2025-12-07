@@ -1,3 +1,5 @@
+/* eslint-disable react-native/no-inline-styles */
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated } from 'react-native';
 
@@ -180,7 +182,7 @@ export const Cell = React.memo<CellProps>(
                     <Text
                       style={{
                         fontSize: size * 0.22,
-                        lineHeight: size * 0.24, // Slight bump
+                        lineHeight: size * 0.24,
                       }}
                       className={`${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'

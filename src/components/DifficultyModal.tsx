@@ -1,4 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   View,
   Text,
@@ -7,6 +9,7 @@ import {
   TouchableWithoutFeedback,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 interface DifficultyModalProps {
   visible: boolean;
@@ -27,7 +30,6 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
   isDarkMode,
   gamesWon,
 }) => {
-  // Unlock Thresholds
   const MEDIUM_UNLOCK_REQ = 3;
   const HARD_UNLOCK_REQ = 3;
 
@@ -36,6 +38,7 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
 
   const isMediumLocked = wins.easy < MEDIUM_UNLOCK_REQ;
   const isHardLocked = wins.medium < HARD_UNLOCK_REQ;
+  const { t } = useTranslation();
 
   return (
     <Modal
@@ -48,73 +51,81 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
         <View className="flex-1 justify-center items-center bg-black/50">
           <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
-              className={`w-4/5 rounded-2xl p-6 shadow-xl ${
-                isDarkMode ? 'bg-gray-800' : 'bg-white'
-              }`}
+              className={`shadow-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}
+              style={{ borderRadius: wp(5), padding: wp(6), width: wp(80) }}
             >
-              <View className="flex-row justify-between items-center mb-6">
+              <View
+                className="flex-row justify-between items-center"
+                style={{ marginBottom: wp(5) }}
+              >
                 <Text
-                  className={`text-2xl font-bold ${
+                  className={`font-bold ${
                     isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}
+                  style={{ fontSize: wp(6) }}
                 >
-                  New Game
+                  {t('newGame')}
                 </Text>
                 <TouchableOpacity onPress={onClose}>
                   <MaterialCommunityIcons
                     name="close"
-                    size={24}
+                    size={wp(6)}
                     color={isDarkMode ? '#9CA3AF' : '#6B7280'}
                   />
                 </TouchableOpacity>
               </View>
-
               <Text
-                className={`mb-4 text-base ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}
+                className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                style={{ marginBottom: wp(4), fontSize: wp(3.5) }}
               >
-                Choose a difficulty level to start:
+                {t('difficultyHeader')}
               </Text>
-
-              <View className="gap-3">
+              <View style={{ gap: wp(3) }}>
                 {/* Easy Option */}
                 <TouchableOpacity
                   onPress={() => {
                     onSelect('easy');
                     onClose();
                   }}
-                  className={`p-4 rounded-xl flex-row items-center border-2 ${
+                  className={`flex-row items-center border-2 ${
                     isDarkMode
                       ? 'bg-green-900/20 border-green-700'
                       : 'bg-green-50 border-green-200'
                   }`}
+                  style={{ padding: wp(4), borderRadius: wp(4) }}
                 >
                   <View
-                    className={`p-2 rounded-full mr-3 ${
+                    className={`${
                       isDarkMode ? 'bg-green-800' : 'bg-green-100'
                     }`}
+                    style={{
+                      padding: wp(2),
+                      borderRadius: 9999,
+                      marginRight: wp(3),
+                    }}
                   >
                     <MaterialCommunityIcons
                       name="feather"
-                      size={24}
+                      size={wp(6)}
                       color={isDarkMode ? '#4ADE80' : '#16A34A'}
                     />
                   </View>
                   <View>
                     <Text
-                      className={`font-bold text-lg ${
+                      className={`font-bold ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}
+                      style={{ fontSize: wp(4) }}
                     >
-                      Easy
+                      {t('easy')}
                     </Text>
                     <Text
-                      className={`text-xs ${
+                      className={`${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}
+                      style={{ fontSize: wp(3) }}
                     >
-                      Relaxing & Fun
+                      {t('easyLabel')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -128,7 +139,7 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                     }
                   }}
                   activeOpacity={isMediumLocked ? 1 : 0.7}
-                  className={`p-4 rounded-xl flex-row items-center border-2 ${
+                  className={`flex-row items-center border-2 ${
                     isMediumLocked
                       ? isDarkMode
                         ? 'bg-gray-800 border-gray-700 opacity-50'
@@ -137,19 +148,25 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                       ? 'bg-yellow-900/20 border-yellow-700'
                       : 'bg-yellow-50 border-yellow-200'
                   }`}
+                  style={{ padding: wp(4), borderRadius: wp(4) }}
                 >
                   <View
-                    className={`p-2 rounded-full mr-3 ${
+                    className={`${
                       isMediumLocked
                         ? 'bg-gray-500'
                         : isDarkMode
                         ? 'bg-yellow-800'
                         : 'bg-yellow-100'
                     }`}
+                    style={{
+                      padding: wp(2),
+                      borderRadius: 9999,
+                      marginRight: wp(3),
+                    }}
                   >
                     <MaterialCommunityIcons
                       name={isMediumLocked ? 'lock' : 'shield-outline'}
-                      size={24}
+                      size={wp(6)}
                       color={
                         isMediumLocked
                           ? '#D1D5DB'
@@ -161,20 +178,24 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                   </View>
                   <View>
                     <Text
-                      className={`font-bold text-lg ${
+                      className={`font-bold ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}
+                      style={{ fontSize: wp(4) }}
                     >
-                      Medium
+                      {t('medium')}
                     </Text>
                     <Text
-                      className={`text-xs ${
+                      className={`${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}
+                      style={{ fontSize: wp(3) }}
                     >
                       {isMediumLocked
-                        ? `Win ${MEDIUM_UNLOCK_REQ - wins.easy} more Easy`
-                        : 'Good Workout'}
+                        ? t('winMoreEasy', {
+                            count: MEDIUM_UNLOCK_REQ - wins.easy,
+                          })
+                        : t('mediumLabel')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -188,7 +209,7 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                     }
                   }}
                   activeOpacity={isHardLocked ? 1 : 0.7}
-                  className={`p-4 rounded-xl flex-row items-center border-2 ${
+                  className={`flex-row items-center border-2 ${
                     isHardLocked
                       ? isDarkMode
                         ? 'bg-gray-800 border-gray-700 opacity-50'
@@ -197,19 +218,25 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                       ? 'bg-red-900/20 border-red-700'
                       : 'bg-red-50 border-red-200'
                   }`}
+                  style={{ padding: wp(4), borderRadius: wp(4) }}
                 >
                   <View
-                    className={`p-2 rounded-full mr-3 ${
+                    className={`${
                       isHardLocked
                         ? 'bg-gray-500'
                         : isDarkMode
                         ? 'bg-red-800'
                         : 'bg-red-100'
                     }`}
+                    style={{
+                      padding: wp(2),
+                      borderRadius: 9999,
+                      marginRight: wp(3),
+                    }}
                   >
                     <MaterialCommunityIcons
                       name={isHardLocked ? 'lock' : 'fire'}
-                      size={24}
+                      size={wp(6)}
                       color={
                         isHardLocked
                           ? '#D1D5DB'
@@ -221,20 +248,24 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
                   </View>
                   <View>
                     <Text
-                      className={`font-bold text-lg ${
+                      className={`font-bold ${
                         isDarkMode ? 'text-white' : 'text-gray-900'
                       }`}
+                      style={{ fontSize: wp(4) }}
                     >
-                      Hard
+                      {t('hard')}
                     </Text>
                     <Text
-                      className={`text-xs ${
+                      className={`${
                         isDarkMode ? 'text-gray-400' : 'text-gray-500'
                       }`}
+                      style={{ fontSize: wp(3) }}
                     >
                       {isHardLocked
-                        ? `Win ${HARD_UNLOCK_REQ - wins.medium} more Medium`
-                        : 'Challenge Yourself'}
+                        ? t('winMoreMedium', {
+                            count: HARD_UNLOCK_REQ - wins.medium,
+                          })
+                        : t('hardLabel')}
                     </Text>
                   </View>
                 </TouchableOpacity>

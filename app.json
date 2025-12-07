@@ -1,4 +1,5 @@
 {
   "name": "TutorSudoku",
-  "displayName": "TutorSudoku"
+  "displayName": "TutorSudoku",
+  "icon": "./src/assets/app_icon.jpeg"
 }

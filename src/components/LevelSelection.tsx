@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { useTranslation } from 'react-i18next';
 
 interface LevelSelectionProps {
   onSelectDifficulty: (difficulty: 'easy' | 'medium' | 'hard') => void;
@@ -13,6 +15,7 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
   isDarkMode,
   gamesWon,
 }) => {
+  const { t } = useTranslation();
   // Unlock Thresholds
   const MEDIUM_UNLOCK_REQ = 3; // Wins on Easy needed
   const HARD_UNLOCK_REQ = 3; // Wins on Medium needed
@@ -32,7 +35,7 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
     <TouchableOpacity
       onPress={() => !locked && onSelectDifficulty(difficulty)}
       activeOpacity={locked ? 1 : 0.7}
-      className={`w-full p-5 mb-4 rounded-2xl border-2 flex-row items-center justify-between ${
+      className={`w-full border-2 flex-row items-center justify-between ${
         locked
           ? isDarkMode
             ? 'bg-gray-800 border-gray-700 opacity-60'
@@ -41,35 +44,43 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-blue-100 shadow-sm'
       }`}
+      style={{ padding: wp(5), borderRadius: wp(5) }}
     >
       <View className="flex-row items-center flex-1">
         <View
-          className={`p-3 rounded-full mr-4 ${locked ? 'bg-gray-500' : ''}`}
-          style={{ backgroundColor: locked ? undefined : `${color}20` }}
+          className={`rounded-full ${locked ? 'bg-gray-500' : ''}`}
+          style={{
+            backgroundColor: locked ? undefined : `${color}20`,
+            padding: wp(2),
+            marginRight: wp(3),
+          }}
         >
           <MaterialCommunityIcons
             name={locked ? 'lock' : icon}
-            size={28}
+            size={wp(8)}
             color={locked ? (isDarkMode ? '#9CA3AF' : '#6B7280') : color}
           />
         </View>
-        <View className="flex-1">
+        <View className="flex-1" style={{ gap: wp(1) }}>
           <Text
-            className={`font-bold text-xl mb-1 ${
+            className={`font-bold ${
               isDarkMode ? 'text-white' : 'text-slate-800'
             }`}
+            style={{ fontSize: wp(5) }}
           >
             {title}
           </Text>
           <Text
-            className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-slate-500'
-            }`}
+            className={`${isDarkMode ? 'text-gray-400' : 'text-slate-500'}`}
+            style={{ fontSize: wp(3.5) }}
           >
             {subtitle}
           </Text>
           {locked && progressText && (
-            <Text className="text-xs font-bold text-orange-500 mt-2">
+            <Text
+              className="font-bold text-orange-500"
+              style={{ fontSize: wp(2.5) }}
+            >
               {progressText}
             </Text>
           )}
@@ -78,7 +89,7 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
       {!locked && (
         <MaterialCommunityIcons
           name="chevron-right"
-          size={24}
+          size={wp(6)}
           color={isDarkMode ? '#4B5563' : '#CBD5E1'}
         />
       )}
@@ -86,19 +97,20 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
   );
 
   return (
-    <View className="w-full px-4 pt-4">
+    <View className="w-full relative" style={{ padding: wp(4), gap: wp(5) }}>
       <Text
-        className={`text-center text-lg font-medium mb-8 ${
+        className={`text-center font-medium ${
           isDarkMode ? 'text-gray-300' : 'text-slate-600'
         }`}
+        style={{ fontSize: wp(4) }}
       >
-        Select your challenge
+        {t('selectDifficulty')}
       </Text>
 
       {renderOption(
         'easy',
-        'Easy',
-        'Perfect for warming up',
+        t('easy'),
+        t('easyDesc'),
         'feather',
         '#10B981', // green-500
         false,
@@ -106,36 +118,35 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
 
       {renderOption(
         'medium',
-        'Medium',
-        'A bit more thinking required',
+        t('medium'),
+        t('mediumDesc'),
         'shield-outline',
         '#F59E0B', // amber-500
         isMediumLocked,
-        `Win ${MEDIUM_UNLOCK_REQ - gamesWon.easy} more Easy games to unlock`,
+        `${t('lock')} ${MEDIUM_UNLOCK_REQ - gamesWon.easy}`,
       )}
 
       {renderOption(
         'hard',
-        'Hard',
-        'For the true puzzle masters',
+        t('hard'),
+        t('hardDesc'),
         'fire',
         '#EF4444', // red-500
         isHardLocked,
-        `Win ${HARD_UNLOCK_REQ - gamesWon.medium} more Medium games to unlock`,
+        `${t('lock')} ${HARD_UNLOCK_REQ - gamesWon.medium}`,
       )}
 
-      <View className="mt-8 flex-row justify-center items-center">
+      <View className="flex-row justify-center items-center">
         <MaterialCommunityIcons
           name="trophy-outline"
-          size={20}
+          size={wp(6)}
           color={isDarkMode ? '#6B7280' : '#94A3B8'}
         />
         <Text
-          className={`ml-2 text-sm ${
-            isDarkMode ? 'text-gray-500' : 'text-slate-400'
-          }`}
+          className={`${isDarkMode ? 'text-gray-500' : 'text-slate-400'}`}
+          style={{ fontSize: wp(3.5), marginLeft: wp(2) }}
         >
-          Total Wins: {gamesWon.easy + gamesWon.medium + gamesWon.hard}
+          {t('wins')} {gamesWon.easy + gamesWon.medium + gamesWon.hard}
         </Text>
       </View>
     </View>

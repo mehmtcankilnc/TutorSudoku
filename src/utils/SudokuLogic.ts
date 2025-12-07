@@ -1,7 +1,8 @@
 export type BoardType = (number | null)[][];
 
 export interface Conflict {
-  message: string;
+  key: string;
+  params: { [key: string]: string | number };
   conflictingCell: { row: number; col: number };
 }
 
@@ -15,9 +16,8 @@ export const checkConflict = (
   for (let i = 0; i < 9; i++) {
     if (board[row][i] === value && i !== col) {
       return {
-        message: `The number ${value} already exists in specific row (Line ${
-          row + 1
-        }).\nSudoku rules state that each number 1-9 must appear exactly once in each row.`,
+        key: 'conflict_row',
+        params: { val: value, row: row + 1 },
         conflictingCell: { row, col: i },
       };
     }
@@ -25,9 +25,8 @@ export const checkConflict = (
   for (let i = 0; i < 9; i++) {
     if (board[i][col] === value && i !== row) {
       return {
-        message: `The number ${value} already exists in this column (Column ${
-          col + 1
-        }).\nEach number must be unique within its vertical column.`,
+        key: 'conflict_col',
+        params: { val: value, col: col + 1 },
         conflictingCell: { row: i, col },
       };
     }
@@ -43,7 +42,8 @@ export const checkConflict = (
         (currentRow !== row || currentCol !== col)
       ) {
         return {
-          message: `The number ${value} is already in this 3x3 block.\nRemember, each 3x3 grid must contain unique numbers from 1 to 9.`,
+          key: 'conflict_box',
+          params: { val: value },
           conflictingCell: { row: currentRow, col: currentCol },
         };
       }
@@ -122,7 +122,8 @@ export const getPossibleValues = (
 };
 
 export interface Hint {
-  message: string;
+  key: string;
+  params?: { [key: string]: string | number };
   cell?: { row: number; col: number };
   relatedCells?: { row: number; col: number }[];
 }
@@ -179,16 +180,17 @@ const checkLockedCandidates = (
               }
             }
             if (existsOutside) {
-              return {
-                message: `💡 Locked Candidate (Pointing)\n\nLook at Box ${
-                  br * 3 + bc + 1
-                }. The number ${num} is restricted to Row ${
-                  firstRow + 1
-                }. Even though we don't know exactly where it goes in the box yet, we know it MUST be in this row.\n\nTherefore, you can remove ${num} from the rest of Row ${
-                  firstRow + 1
-                }.`,
-                cell: { row: positions[0].r, col: positions[0].c }, // Corrected property mapping
-              };
+              if (existsOutside) {
+                return {
+                  key: 'hint_lockedCandidatePointingRow',
+                  params: {
+                    box: br * 3 + bc + 1,
+                    val: num,
+                    row: firstRow + 1,
+                  },
+                  cell: { row: positions[0].r, col: positions[0].c },
+                };
+              }
             }
           }
 
@@ -208,16 +210,17 @@ const checkLockedCandidates = (
               }
             }
             if (existsOutside) {
-              return {
-                message: `💡 Locked Candidate (Pointing)\n\nLook at Box ${
-                  br * 3 + bc + 1
-                }. The number ${num} is restricted to Column ${
-                  firstCol + 1
-                }. We know it MUST be in this column within the box.\n\nTherefore, you can remove ${num} from the rest of Column ${
-                  firstCol + 1
-                }.`,
-                cell: { row: positions[0].r, col: positions[0].c }, // Corrected property mapping
-              };
+              if (existsOutside) {
+                return {
+                  key: 'hint_lockedCandidatePointingCol',
+                  params: {
+                    box: br * 3 + bc + 1,
+                    val: num,
+                    col: firstCol + 1,
+                  },
+                  cell: { row: positions[0].r, col: positions[0].c },
+                };
+              }
             }
           }
         }
@@ -262,15 +265,15 @@ const checkNakedPairs = (
           const c1 = pairs[k][0];
           const c2 = pairs[k][1];
           return {
-            message: `💡 Naked Pair\n\nLook at Row ${
-              r + 1
-            }. The cells at Column ${c1 + 1} and Column ${
-              c2 + 1
-            } contain only the candidates [${k}].\n\nThis means one of them must be ${
-              combo[0]
-            } and the other ${
-              combo[1]
-            }. No other cell in this row can contain these numbers. You can eliminate them from other cells in this row!`,
+            key: 'hint_nakedPairRow',
+            params: {
+              row: r + 1,
+              col1: c1 + 1,
+              col2: c2 + 1,
+              candidates: k,
+              val1: combo[0],
+              val2: combo[1],
+            },
             cell: { row: r, col: c1 },
           };
         }
@@ -306,9 +309,11 @@ const checkNakedPairs = (
         if (effective) {
           const r1 = pairs[k][0];
           return {
-            message: `💡 Naked Pair\n\nLook at Column ${
-              c + 1
-            }. A Naked Pair [${k}] exists.\n\nSince these two cells must containing [${k}], these numbers cannot appear elsewhere in this column.`,
+            key: 'hint_nakedPairCol',
+            params: {
+              col: c + 1,
+              candidates: k,
+            },
             cell: { row: r1, col: c },
           };
         }
@@ -348,11 +353,12 @@ export const getHint = (board: BoardType): Hint | null => {
           if (score > bestScore) {
             bestScore = score;
             bestHint = {
-              message: `💡 Naked Single\n\nThis cell (Row ${r + 1}, Col ${
-                c + 1
-              }) can ONLY be **${
-                possibles[0]
-              }**.\n\nAll other numbers blocked by Row, Column, or Box.`,
+              key: 'hint_nakedSingle',
+              params: {
+                row: r + 1,
+                col: c + 1,
+                val: possibles[0],
+              },
               cell: { row: r, col: c },
             };
           }
@@ -383,9 +389,12 @@ export const getHint = (board: BoardType): Hint | null => {
         if (score > bestScore) {
           bestScore = score;
           bestHint = {
-            message: `💡 Hidden Single (Row)\n\nRow ${r + 1}, Column ${
-              counts[num][0] + 1
-            } is the ONLY place in this row for **${num}**.`,
+            key: 'hint_hiddenSingleRow',
+            params: {
+              row: r + 1,
+              col: counts[num][0] + 1,
+              val: num,
+            },
             cell: { row: r, col: counts[num][0] },
           };
         }
@@ -408,11 +417,12 @@ export const getHint = (board: BoardType): Hint | null => {
         if (0 > bestScore) {
           bestScore = 50;
           bestHint = {
-            message: `💡 Hidden Single (Col)\n\nRow ${
-              counts[num][0] + 1
-            }, Column ${
-              c + 1
-            } is the ONLY place in this column for **${num}**.`,
+            key: 'hint_hiddenSingleCol',
+            params: {
+              row: counts[num][0] + 1,
+              col: c + 1,
+              val: num,
+            },
             cell: { row: counts[num][0], col: c },
           };
         }
@@ -431,8 +441,7 @@ export const getHint = (board: BoardType): Hint | null => {
   if (nakedPairHint) return nakedPairHint;
 
   return {
-    message:
-      '🤔 No obvious moves found.\n\nThe board might be very hard or require trying advanced elimination techniques!',
+    key: 'hint_noMove',
   };
 };
 

@@ -1,4 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
@@ -13,6 +15,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { TUTORIAL_DATA } from '../data/TutorialData';
 import { Technique } from '../types';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 
 interface AccordionItemProps {
   item: Technique;
@@ -29,6 +32,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
   isDarkMode,
   onLessonStart,
 }) => {
+  const { t } = useTranslation();
   const rotation = useSharedValue(0);
   const completedTutorials = useSelector(
     (state: RootState) => state.progress.completedTutorials,
@@ -36,6 +40,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
 
   React.useEffect(() => {
     rotation.value = withTiming(isExpanded ? 180 : 0, { duration: 300 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isExpanded]);
 
   const chevronStyle = useAnimatedStyle(() => ({
@@ -47,7 +52,8 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
   return (
     <Animated.View
       layout={LinearTransition.duration(300)}
-      className={`mb-4 rounded-xl border-2 overflow-hidden ${
+      style={{ borderWidth: 2, borderRadius: wp(3), marginBottom: wp(1) }}
+      className={`overflow-hidden ${
         isExpanded
           ? isDarkMode
             ? 'border-blue-500 bg-gray-800'
@@ -60,19 +66,24 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onToggle}
-        className="p-4 flex-row items-center justify-between"
+        className="flex-row items-center justify-between"
+        style={{ padding: wp(3) }}
       >
-        <View className="flex-1 flex-row items-center mr-2">
+        <View
+          className="flex-1 flex-row items-center"
+          style={{ marginRight: wp(2) }}
+        >
           <Text
             numberOfLines={1}
-            className={`font-bold text-lg flex-shrink ${
+            className={`font-bold flex-shrink ${
               isDarkMode ? 'text-gray-100' : 'text-gray-800'
             }`}
+            style={{ fontSize: wp(4) }}
           >
-            {item.title}
+            {t(item.title)}
           </Text>
           <View
-            className={`ml-2 px-2 py-0.5 rounded-full ${
+            className={`${
               item.difficulty === 'Beginner'
                 ? isDarkMode
                   ? 'bg-green-900'
@@ -85,9 +96,15 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                 ? 'bg-red-900'
                 : 'bg-red-100'
             }`}
+            style={{
+              marginLeft: wp(2),
+              paddingHorizontal: wp(2),
+              paddingVertical: wp(1),
+              borderRadius: 9999,
+            }}
           >
             <Text
-              className={`text-xs font-bold ${
+              className={`font-bold ${
                 item.difficulty === 'Beginner'
                   ? isDarkMode
                     ? 'text-green-400'
@@ -100,42 +117,43 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                   ? 'text-red-400'
                   : 'text-red-700'
               }`}
+              style={{ fontSize: wp(3) }}
             >
-              {item.difficulty}
+              {t(item.difficulty.toLowerCase())}
             </Text>
           </View>
         </View>
         <Animated.View style={chevronStyle}>
           <MaterialCommunityIcons
             name="chevron-down"
-            size={24}
+            size={wp(6)}
             color={isExpanded ? '#3B82F6' : '#9CA3AF'}
           />
         </Animated.View>
       </TouchableOpacity>
-
       {isExpanded && (
         <Animated.View
           entering={FadeIn}
           exiting={FadeOut}
-          className="px-4 pb-4"
+          style={{ paddingHorizontal: wp(3), paddingBottom: wp(3) }}
         >
           <Text
-            className={`leading-5 mb-4 ${
+            className={`leading-5 ${
               isDarkMode ? 'text-gray-300' : 'text-gray-600'
             }`}
+            style={{ marginBottom: wp(4) }}
           >
-            {item.description}
+            {t(item.description)}
           </Text>
-
           <Text
-            className={`font-bold mb-2 ${
+            className={`font-bold ${
               isDarkMode ? 'text-gray-200' : 'text-gray-800'
             }`}
+            style={{ marginBottom: wp(2) }}
           >
-            Interactive Lessons:
+            {t('interactiveLessons')}
           </Text>
-          <View className="gap-2">
+          <View style={{ gap: wp(2) }}>
             {relevantTutorials.map((tut, idx) => {
               const isCompleted = completedTutorials.includes(tut.id);
 
@@ -143,14 +161,15 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                 <TouchableOpacity
                   key={tut.id}
                   onPress={() => onLessonStart(tut)}
-                  className={`p-3 rounded-lg flex-row items-center active:opacity-70 ${
+                  className={`flex-row items-center active:opacity-70 ${
                     isDarkMode
                       ? 'bg-blue-900/40'
                       : 'bg-white border border-blue-200'
                   }`}
+                  style={{ padding: wp(3), borderRadius: wp(2) }}
                 >
                   <View
-                    className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${
+                    className={`items-center justify-center ${
                       isCompleted
                         ? isDarkMode
                           ? 'bg-green-600'
@@ -159,11 +178,17 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                         ? 'bg-blue-600'
                         : 'bg-blue-100'
                     }`}
+                    style={{
+                      width: wp(8),
+                      height: wp(8),
+                      borderRadius: 9999,
+                      marginRight: wp(2),
+                    }}
                   >
                     {isCompleted ? (
                       <MaterialCommunityIcons
                         name="check"
-                        size={16}
+                        size={wp(5)}
                         color={isDarkMode ? 'white' : '#15803d'}
                       />
                     ) : (
@@ -182,15 +207,15 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                         isDarkMode ? 'text-blue-100' : 'text-gray-900'
                       }`}
                     >
-                      {tut.title}
+                      {t(tut.title)}
                     </Text>
                   </View>
                   <MaterialCommunityIcons
                     name={isCompleted ? 'check-circle' : 'play-circle-outline'}
-                    size={24}
+                    size={wp(7)}
                     color={
                       isCompleted
-                        ? '#22c55e' // Green-500
+                        ? '#22c55e'
                         : isDarkMode
                         ? '#60A5FA'
                         : '#3B82F6'

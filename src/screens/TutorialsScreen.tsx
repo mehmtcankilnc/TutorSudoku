@@ -1,5 +1,7 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
-import { View, Text, ScrollView, Platform, BackHandler } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { View, Text, ScrollView, BackHandler } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,8 +11,13 @@ import { TECHNIQUES } from '../data/Techniques';
 import { InteractiveLesson } from '../components/InteractiveLesson';
 import { AccordionItem } from '../components/AccordionItem';
 import { markTutorialComplete } from '../store/progressSlice';
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen';
 
 export const TutorialsScreen: React.FC = () => {
+  const { t } = useTranslation();
   const dispatch = useDispatch();
   const [expandedId, setExpandedId] = React.useState<string | null>(null);
   const [activeLesson, setActiveLesson] =
@@ -74,22 +81,28 @@ export const TutorialsScreen: React.FC = () => {
 
   return (
     <View
-      className={`flex-1 pt-12 px-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}
+      className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-blue-50'}`}
+      style={{ paddingHorizontal: wp(6), paddingTop: hp(6) }}
     >
-      <View className="mb-6">
+      <View style={{ marginBottom: wp(2) }}>
         <Text
-          className={`text-3xl font-extrabold ${
+          className={`font-extrabold ${
             isDarkMode ? 'text-blue-400' : 'text-blue-900'
           }`}
+          style={{ fontSize: wp(8) }}
         >
-          Learn Sudoku
+          {t('learnSudoku')}
         </Text>
         <Text className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-          Master techniques from beginner to pro
+          {t('learnSudokuDesc')}
         </Text>
       </View>
-
-      <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        className="flex-1"
+        showsVerticalScrollIndicator={false}
+        alwaysBounceVertical={false}
+        contentContainerStyle={{ flexGrow: 1, gap: wp(2) }}
+      >
         {TECHNIQUES.map(tech => (
           <AccordionItem
             key={tech.id}
@@ -100,7 +113,6 @@ export const TutorialsScreen: React.FC = () => {
             onLessonStart={setActiveLesson}
           />
         ))}
-        <View className="h-24" />
       </ScrollView>
     </View>
   );
