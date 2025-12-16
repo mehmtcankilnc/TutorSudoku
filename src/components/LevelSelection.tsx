@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
@@ -18,7 +18,7 @@ export const LevelSelection: React.FC<LevelSelectionProps> = ({
   const { t } = useTranslation();
   // Unlock Thresholds
   const MEDIUM_UNLOCK_REQ = 3; // Wins on Easy needed
-  const HARD_UNLOCK_REQ = 3; // Wins on Medium needed
+  const HARD_UNLOCK_REQ = 5; // Wins on Medium needed
 
   const isMediumLocked = gamesWon.easy < MEDIUM_UNLOCK_REQ;
   const isHardLocked = gamesWon.medium < HARD_UNLOCK_REQ;

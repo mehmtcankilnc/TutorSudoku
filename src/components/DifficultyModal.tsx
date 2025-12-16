@@ -31,7 +31,7 @@ export const DifficultyModal: React.FC<DifficultyModalProps> = ({
   gamesWon,
 }) => {
   const MEDIUM_UNLOCK_REQ = 3;
-  const HARD_UNLOCK_REQ = 3;
+  const HARD_UNLOCK_REQ = 5;
 
   // Ensure gamesWon is defined to prevent crashes if not yet hydrated perfectly
   const wins = gamesWon || { easy: 0, medium: 0, hard: 0 };

@@ -29,6 +29,10 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const navigation = useNavigation<NavigationProp<any>>();
   const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageDims, setImageDims] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [verificationBoard, setVerificationBoard] = useState<
     (number | null)[][] | null
@@ -100,6 +104,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
 
       if (image && image.path) {
         setImageUri(image.path);
+        setImageDims({ width: image.width, height: image.height });
         setVerificationBoard(null); // Reset any previous verification
       }
     } catch (error: any) {
@@ -110,7 +115,11 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
     }
   };
 
-  const parseSudokuFromText = (result: any): (number | null)[][] | null => {
+  const parseSudokuFromText = (
+    result: any,
+    imgWidth: number,
+    imgHeight: number,
+  ): (number | null)[][] | null => {
     const allNumbers: { val: number; centerX: number; centerY: number }[] = [];
 
     if (result.blocks && result.blocks.length > 0) {
@@ -151,53 +160,46 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       });
     }
 
-    if (allNumbers.length < 10) return null;
+    if (allNumbers.length < 5) return null; // We need at least a few numbers to form a board
 
-    // Normalize coordinates
-    let minX = Infinity,
-      maxX = -Infinity,
-      minY = Infinity,
-      maxY = -Infinity;
-    allNumbers.forEach(n => {
-      if (n.centerX < minX) minX = n.centerX;
-      if (n.centerX > maxX) maxX = n.centerX;
-      if (n.centerY < minY) minY = n.centerY;
-      if (n.centerY > maxY) maxY = n.centerY;
-    });
-
-    const widthSpan = maxX - minX;
-    const heightSpan = maxY - minY;
-
-    if (widthSpan <= 0 || heightSpan <= 0) return null;
-
-    // Average cell dimensions (assuming 9x9 grid roughly)
-    // We use 8 intervals because distance is between center of first and last cell
-    const avgCellWidth = widthSpan / 8;
-    const avgCellHeight = heightSpan / 8;
+    const cellWidth = imgWidth / 9;
+    const cellHeight = imgHeight / 9;
 
     const grid: (number | null)[][] = Array(9)
       .fill(null)
       .map(() => Array(9).fill(null));
 
     allNumbers.forEach(n => {
-      const colIndex = Math.round((n.centerX - minX) / avgCellWidth);
-      const rowIndex = Math.round((n.centerY - minY) / avgCellHeight);
+      // Map coordinates to 0-8 indices
+      // We add a small buffer/clamping to ensure center points near edges don't overflow
+      const colIndex = Math.min(
+        8,
+        Math.max(0, Math.floor(n.centerX / cellWidth)),
+      );
+      const rowIndex = Math.min(
+        8,
+        Math.max(0, Math.floor(n.centerY / cellHeight)),
+      );
 
-      if (rowIndex >= 0 && rowIndex <= 8 && colIndex >= 0 && colIndex <= 8) {
-        grid[rowIndex][colIndex] = n.val;
-      }
+      // If we have multiple numbers in same cell, we might want to prioritize central ones?
+      // For now, simply overwriting is a reasonable heuristic or taking the last detected one.
+      grid[rowIndex][colIndex] = n.val;
     });
 
     return grid;
   };
 
   const processImage = async () => {
-    if (!imageUri) return;
+    if (!imageUri || !imageDims) return;
     setIsProcessing(true);
 
     try {
       const result = await TextRecognition.recognize(imageUri);
-      const parsedGrid = parseSudokuFromText(result);
+      const parsedGrid = parseSudokuFromText(
+        result,
+        imageDims.width,
+        imageDims.height,
+      );
 
       if (parsedGrid) {
         setVerificationBoard(parsedGrid);
@@ -244,7 +246,10 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
         >
           {t('scanPuzzle')}
         </Text>
-        <Text className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        <Text
+          className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          style={{ fontSize: wp(3) }}
+        >
           {t('scanPuzzleDesc')}
         </Text>
       </View>

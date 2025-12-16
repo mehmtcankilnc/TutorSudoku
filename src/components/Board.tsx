@@ -410,7 +410,7 @@ export const Board: React.FC<BoardProps> = ({
               className={`text-4xl font-bold ${
                 isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}
-              style={{ fontSize: wp(10) }}
+              style={{ fontSize: wp(10), lineHeight: wp(10) }}
             >
               {t('paused')}
             </Text>
@@ -462,13 +462,13 @@ export const Board: React.FC<BoardProps> = ({
                   const borderRight =
                     (colIndex + 1) % 3 === 0 && colIndex !== 8
                       ? `border-r-2 ${
-                          isDarkMode ? 'border-r-gray-600' : 'border-r-black'
+                          isDarkMode ? 'border-r-gray-800' : 'border-r-black'
                         }`
                       : '';
                   const borderBottom =
                     (rowIndex + 1) % 3 === 0 && rowIndex !== 8
                       ? `border-b-2 ${
-                          isDarkMode ? 'border-b-gray-600' : 'border-b-black'
+                          isDarkMode ? 'border-b-gray-800' : 'border-b-black'
                         }`
                       : '';
                   const isEditable = initialBoard[rowIndex][colIndex] === null;

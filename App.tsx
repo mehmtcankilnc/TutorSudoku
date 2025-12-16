@@ -28,9 +28,11 @@ import { ActivityIndicator, View, useColorScheme } from 'react-native';
 import { setDarkMode } from './src/store/themeSlice';
 import { setCompletedTutorials } from './src/store/progressSlice';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { useResposive } from './src/hooks/useResponsive';
 
 const Tab = createBottomTabNavigator();
 const MainApp = () => {
+  const r = useResposive();
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
@@ -103,7 +105,9 @@ const MainApp = () => {
 
   if (isLoading) {
     return (
-      <SafeAreaProvider>
+      <SafeAreaProvider
+        style={{ backgroundColor: isDarkMode ? '#111827' : '#ffffff' }}
+      >
         <View
           style={{
             flex: 1,
@@ -120,9 +124,12 @@ const MainApp = () => {
 
   if (!isOnboarded) {
     return (
-      <SafeAreaProvider>
+      <SafeAreaProvider
+        style={{ backgroundColor: isDarkMode ? '#111827' : '#ffffff' }}
+      >
         <StatusBar
-          barStyle={isDarkMode ? 'light-content' : 'dark-content'}
+          hidden
+          translucent={true}
           backgroundColor={isDarkMode ? '#111827' : '#ffffff'}
         />
         <SafeAreaView
@@ -130,7 +137,7 @@ const MainApp = () => {
             flex: 1,
             backgroundColor: isDarkMode ? '#111827' : '#ffffff',
           }}
-          edges={['top', 'bottom']}
+          edges={['top', 'right', 'left']}
         >
           <OnboardingScreen />
         </SafeAreaView>
@@ -139,31 +146,27 @@ const MainApp = () => {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider
+      style={{ backgroundColor: isDarkMode ? '#111827' : '#eff6ff' }}
+    >
       <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={isDarkMode ? '#111827' : '#ffffff'}
+        hidden
+        translucent={true}
+        backgroundColor={isDarkMode ? '#111827' : '#eff6ff'}
       />
       <SafeAreaView
-        style={{ flex: 1, backgroundColor: isDarkMode ? '#111827' : '#ffffff' }}
-        edges={['top', 'bottom']}
+        style={{ flex: 1, backgroundColor: isDarkMode ? '#111827' : '#eff6ff' }}
+        edges={['top', 'left', 'right']}
       >
-        <NavigationContainer
-          theme={isDarkMode ? MyDarkTheme : MyLightTheme}
-          key={isDarkMode ? 'dark' : 'light'}
-        >
+        <NavigationContainer theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
           <Tab.Navigator
             screenOptions={{
               headerShown: false,
               tabBarStyle: {
                 backgroundColor: isDarkMode ? '#1F2937' : '#ffffff',
-                borderTopWidth: 1,
-                borderTopColor: isDarkMode ? '#374151' : '#f3f4f6',
-                elevation: 10,
-                shadowColor: isDarkMode ? '#000000' : '#000000',
               },
               tabBarLabelStyle: {
-                fontSize: wp(3.5),
+                fontSize: r.isTablet ? wp(2.5) : wp(3.5),
                 fontWeight: '600',
               },
               tabBarActiveTintColor: '#3B82F6',
@@ -179,7 +182,7 @@ const MainApp = () => {
                   <MaterialCommunityIcons
                     name="puzzle-outline"
                     color={color}
-                    size={wp(8)}
+                    size={r.isTablet ? wp(3) : wp(8)}
                   />
                 ),
               }}
@@ -193,7 +196,7 @@ const MainApp = () => {
                   <MaterialCommunityIcons
                     name="camera-outline"
                     color={color}
-                    size={wp(8)}
+                    size={r.isTablet ? wp(3) : wp(8)}
                   />
                 ),
               }}
@@ -207,7 +210,7 @@ const MainApp = () => {
                   <MaterialCommunityIcons
                     name="school-outline"
                     color={color}
-                    size={wp(8)}
+                    size={r.isTablet ? wp(3) : wp(8)}
                   />
                 ),
               }}

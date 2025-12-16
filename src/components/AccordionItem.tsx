@@ -196,6 +196,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                         className={`font-bold ${
                           isDarkMode ? 'text-white' : 'text-blue-700'
                         }`}
+                        style={{ fontSize: wp(3) }}
                       >
                         {idx + 1}
                       </Text>

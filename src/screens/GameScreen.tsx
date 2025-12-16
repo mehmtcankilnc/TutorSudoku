@@ -6,7 +6,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import { Board } from '../components/Board';
-import { useSelector, useDispatch } from 'react-redux';
+import { useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, RouteProp } from '@react-navigation/native';
@@ -20,7 +20,6 @@ type GameScreenRouteProp = RouteProp<
 
 export const GameScreen: React.FC = () => {
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
-  const dispatch = useDispatch();
   const route = useRoute<GameScreenRouteProp>();
   const scannedBoard = route.params?.scannedBoard;
   const [isSettingsVisible, setIsSettingsVisible] = React.useState(false);
@@ -51,6 +50,7 @@ export const GameScreen: React.FC = () => {
             </Text>
             <Text
               className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              style={{ fontSize: wp(3) }}
             >
               {t('gameScreenText')}
             </Text>

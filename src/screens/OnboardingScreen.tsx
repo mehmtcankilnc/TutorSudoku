@@ -1,6 +1,14 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import React, { useState, useRef, useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  FlatList,
+  ViewToken,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
+} from 'react-native';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -22,10 +30,38 @@ export const OnboardingScreen: React.FC = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
+  const flatListRef = useRef<FlatList>(null);
 
   const [step, setStep] = useState(0);
   const [skillLevel, setSkillLevel] = useState<UserState['skillLevel']>(null);
   const [frequency, setFrequency] = useState<string | null>(null);
+
+  const steps = useMemo(
+    () => [
+      { type: 'welcome' },
+      {
+        type: 'feature',
+        image: require('../assets/scan_feature.jpeg'),
+        title: t('scanTitle'),
+        description: t('scanDesc'),
+      },
+      {
+        type: 'feature',
+        image: require('../assets/tutorial_feature.jpeg'),
+        title: t('learnTitle'),
+        description: t('learnDesc'),
+      },
+      {
+        type: 'feature',
+        image: require('../assets/hint_feature.jpeg'),
+        title: t('hintsTitle'),
+        description: t('hintsDesc'),
+      },
+      { type: 'skill' },
+      { type: 'frequency' },
+    ],
+    [t],
+  );
 
   const completeOnboarding = async (
     skill: string = 'beginner',
@@ -52,10 +88,15 @@ export const OnboardingScreen: React.FC = () => {
     );
   };
 
-  const handleNext = async () => {
-    if (step < 4) setStep(step + 1);
-    else if (step === 4) setStep(5);
-    else if (step === 5) {
+  const scrollToStep = (index: number) => {
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+    setStep(index);
+  };
+
+  const handleNext = () => {
+    if (step < steps.length - 1) {
+      scrollToStep(step + 1);
+    } else {
       completeOnboarding(skillLevel || 'beginner', frequency || 'Once a week');
     }
   };
@@ -65,64 +106,66 @@ export const OnboardingScreen: React.FC = () => {
   };
 
   const handleBack = () => {
-    if (step > 0) setStep(step - 1);
+    if (step > 0) {
+      scrollToStep(step - 1);
+    }
   };
 
-  const renderContent = () => {
-    switch (step) {
-      case 0: // Welcome
-        return <WelcomeStep isDarkMode={isDarkMode} onNext={handleNext} />;
-      case 1: // Feature: Scan
-        return (
+  // Update step when user swipes
+  const onViewableItemsChanged = useRef(
+    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
+      if (viewableItems.length > 0 && viewableItems[0].index !== null) {
+        setStep(viewableItems[0].index);
+      }
+    },
+  ).current;
+
+  const viewabilityConfig = useRef({
+    itemVisiblePercentThreshold: 50,
+  }).current;
+
+  const visibleSteps = useMemo(() => {
+    if (skillLevel === null) {
+      return steps.slice(0, 5);
+    }
+    return steps;
+  }, [steps, skillLevel]);
+
+  const renderItem = ({ item }: { item: any }) => {
+    return (
+      <View style={{ width: wp(100), flex: 1 }}>
+        {item.type === 'welcome' && (
+          <WelcomeStep isDarkMode={isDarkMode} onNext={() => scrollToStep(1)} />
+        )}
+        {item.type === 'feature' && (
           <FeatureStep
             isDarkMode={isDarkMode}
-            imageSource={require('../assets/scan_feature.jpeg')}
-            title={t('scanTitle')}
-            description={t('scanDesc')}
+            imageSource={item.image}
+            title={item.title}
+            description={item.description}
           />
-        );
-      case 2: // Feature: Learn
-        return (
-          <FeatureStep
-            isDarkMode={isDarkMode}
-            imageSource={require('../assets/tutorial_feature.jpeg')}
-            title={t('learnTitle')}
-            description={t('learnDesc')}
-          />
-        );
-      case 3: // Feature: Hints
-        return (
-          <FeatureStep
-            isDarkMode={isDarkMode}
-            imageSource={require('../assets/hint_feature.jpeg')}
-            title={t('hintsTitle')}
-            description={t('hintsDesc')}
-          />
-        );
-      case 4: // Skill
-        return (
+        )}
+        {item.type === 'skill' && (
           <SkillLevelStep
             isDarkMode={isDarkMode}
             selectedSkillLevel={skillLevel}
             onSelectSkill={setSkillLevel}
           />
-        );
-      case 5: // Frequency
-        return (
+        )}
+        {item.type === 'frequency' && (
           <FrequencyStep
             isDarkMode={isDarkMode}
             selectedFrequency={frequency}
             onSelectFrequency={setFrequency}
           />
-        );
-      default:
-        return null;
-    }
+        )}
+      </View>
+    );
   };
 
   return (
-    <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-      <View className="absolute top-12 right-6 z-50">
+    <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-blue-50'}`}>
+      <View className="absolute top-6 right-6 z-50">
         <TouchableOpacity
           onPress={handleSkip}
           className={`px-5 py-2.5 rounded-full ${
@@ -140,15 +183,28 @@ export const OnboardingScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
-      <ScrollView className="flex-1" contentContainerStyle={{ flexGrow: 1 }}>
-        {renderContent()}
-      </ScrollView>
+
+      <FlatList
+        ref={flatListRef}
+        data={visibleSteps}
+        renderItem={renderItem}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_, index) => index.toString()}
+        onViewableItemsChanged={onViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
+        initialNumToRender={1}
+        maxToRenderPerBatch={1}
+        windowSize={3}
+      />
+
       {/* Footer Navigation */}
       {step > 0 && (
         <View style={{ padding: wp(6) }}>
           <StepIndicator
             currentStep={step}
-            totalSteps={6}
+            totalSteps={steps.length}
             isDarkMode={isDarkMode}
           />
           <View className="flex-row" style={{ gap: wp(4) }}>
@@ -169,20 +225,24 @@ export const OnboardingScreen: React.FC = () => {
             </TouchableOpacity>
             <TouchableOpacity
               disabled={
-                (step === 4 && skillLevel === null) ||
-                (step === 5 && frequency === null)
+                (step === steps.findIndex(s => s.type === 'skill') &&
+                  skillLevel === null) ||
+                (step === steps.findIndex(s => s.type === 'frequency') &&
+                  frequency === null)
               }
               onPress={handleNext}
               className={`flex-1 items-center bg-blue-600 shadow-lg shadow-blue-500/30 ${
-                (step === 4 && skillLevel === null) ||
-                (step === 5 && frequency === null)
+                (step === steps.findIndex(s => s.type === 'skill') &&
+                  skillLevel === null) ||
+                (step === steps.findIndex(s => s.type === 'frequency') &&
+                  frequency === null)
                   ? 'opacity-50'
                   : 'opacity-100'
               }`}
               style={{ paddingVertical: wp(4), borderRadius: wp(4) }}
             >
               <Text className={`font-bold text-white`}>
-                {step === 5 ? t('complete') : t('next')}
+                {step === steps.length - 1 ? t('complete') : t('next')}
               </Text>
             </TouchableOpacity>
           </View>

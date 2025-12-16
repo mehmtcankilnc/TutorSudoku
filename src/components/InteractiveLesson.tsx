@@ -85,7 +85,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
   };
 
   return (
-    <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+    <View className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-blue-50'}`}>
       {/* Header */}
       <View
         className="flex-row items-center justify-center border-b border-gray-200 dark:border-gray-700"
@@ -176,7 +176,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
           className={`border-l-4 ${
             isDarkMode
               ? 'bg-blue-900/20 border-blue-500'
-              : 'bg-blue-50 border-blue-500'
+              : 'bg-white border-blue-500'
           }`}
           style={{
             minHeight: wp(10),

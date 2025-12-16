@@ -93,7 +93,10 @@ export const TutorialsScreen: React.FC = () => {
         >
           {t('learnSudoku')}
         </Text>
-        <Text className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+        <Text
+          className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+          style={{ fontSize: wp(3) }}
+        >
           {t('learnSudokuDesc')}
         </Text>
       </View>
