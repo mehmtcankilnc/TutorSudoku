@@ -1,340 +1,188 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import { useIsFocused } from '@react-navigation/native';
-import { Cell } from './Cell';
-import {
-  generateSudoku,
-  isValidMove,
-  BoardType,
-  getHint,
-  checkConflict,
-  checkCompletion,
-  isGameSolved,
-} from '../utils/SudokuLogic';
 import { ResultScreen } from './ResultScreen';
 import { NumberPad } from './NumberPad';
-import { TutorBubble } from './TutorBubble';
 import { GameTimer } from './GameTimer';
-import { DifficultyModal } from './DifficultyModal';
-import { LevelSelection } from './LevelSelection';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useSelector, useDispatch } from 'react-redux';
-import { RootState } from '../store/store';
-import { recordWin } from '../store/userSlice';
-
-import { useAlert } from '../context/AlertContext';
+import { useSudokuGame } from '../hooks/useSudokuGame';
+import { SudokuGrid } from './SudokuGrid';
+import { GameControls } from './GameControls';
 
 interface BoardProps {
   scannedBoard?: (number | null)[][];
   isSettingsOpen?: boolean;
+  initialDifficulty?: 'easy' | 'medium' | 'hard';
+  onExit: () => void;
+  savedGameState?: any; // Using any for GameState temporarily to avoid import loops or complex refactoring
+  justResumed?: boolean;
+  onReady?: () => void;
+  containerStyle?: View['props']['style'];
 }
 
 export const Board: React.FC<BoardProps> = ({
   scannedBoard,
   isSettingsOpen = false,
+  initialDifficulty = 'easy',
+  onExit,
+  savedGameState,
+  justResumed,
+  onReady,
 }) => {
   const isFocused = useIsFocused();
-  const dispatch = useDispatch();
-  const { showAlert } = useAlert();
   const { t } = useTranslation();
 
-  const totalBoardWidth = wp('85%');
-  const cellSize = Math.floor(totalBoardWidth / 9);
+  const game = useSudokuGame(scannedBoard, () => {});
 
-  const { isDarkMode, gamesWon } = useSelector((state: RootState) => ({
-    isDarkMode: state.theme.isDarkMode,
-    gamesWon: state.user.gamesWon || { easy: 0, medium: 0, hard: 0 },
-  }));
-
-  const [initialBoard, setInitialBoard] = useState<BoardType>([]);
-  const [board, setBoard] = useState<BoardType>([]);
-  const [notes, setNotes] = useState<number[][][]>([]);
-
-  const [selectedCell, setSelectedCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [highlightedCell, setHighlightedCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [shakingCell, setShakingCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [lastMovedCell, setLastMovedCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [tutorMessage, setTutorMessage] = useState<{
-    row: number;
-    col: number;
-    text: { key: string; params?: any };
-  } | null>(null);
-  const [conflictingCell, setConflictingCell] = useState<{
-    row: number;
-    col: number;
-  } | null>(null);
-  const [completedUnits, setCompletedUnits] = useState<
-    { type: string; index: number }[]
-  >([]);
-  const [isSolved, setIsSolved] = useState(false);
-  const [mistakeCount, setMistakeCount] = useState(0);
-  const [hintCount, setHintCount] = useState(0);
-
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isNoteMode, setIsNoteMode] = useState(false);
-
-  const timerRef = React.useRef(0);
-  const [isDifficultyModalVisible, setIsDifficultyModalVisible] =
-    useState(false);
-  const [gameKey, setGameKey] = useState(0);
-
-  const [gameState, setGameState] = useState<'selecting' | 'playing'>(
-    'selecting',
-  );
-  const [currentDifficulty, setCurrentDifficulty] = useState<
-    'easy' | 'medium' | 'hard'
-  >('easy');
-
+  // Use a ref to access the latest game state in the AppState listener without re-subscribing
+  const gameRef = React.useRef(game);
   useEffect(() => {
-    if (scannedBoard) {
-      const validBoard = JSON.parse(JSON.stringify(scannedBoard));
-      setInitialBoard(validBoard);
-      setBoard(JSON.parse(JSON.stringify(validBoard)));
-      setNotes(
-        Array(9)
-          .fill(null)
-          .map(() => Array(9).fill([])),
-      );
+    gameRef.current = game;
+  });
 
-      timerRef.current = 0;
-      setGameKey(prev => prev + 1);
-      setIsSolved(false);
-      setMistakeCount(0);
-      setHintCount(0);
-      setIsTimerRunning(true);
-      setIsPaused(false);
-      setIsNoteMode(false);
-      setCurrentDifficulty('easy');
-      setGameState('playing');
-    } else {
-      setGameState('selecting');
+  // Track if we are exiting manually via the exit button
+  const isManualExit = React.useRef(false);
+
+  // Check for board readiness
+  useEffect(() => {
+    if (game.board.length > 0 && onReady) {
+      onReady();
     }
-  }, [scannedBoard]);
+  }, [game.board, onReady]);
 
-  const completedNumbers = React.useMemo(() => {
-    if (board.length === 0) return [];
-    const counts: { [key: number]: number } = {};
-    board.forEach(row =>
-      row.forEach(val => {
-        if (val !== null) counts[val] = (counts[val] || 0) + 1;
-      }),
-    );
-    return [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => counts[n] === 9);
-  }, [board]);
-
-  const startNewGame = (difficulty: 'easy' | 'medium' | 'hard' = 'easy') => {
-    setIsDifficultyModalVisible(false);
-    const newBoard = generateSudoku(difficulty);
-
-    setInitialBoard(newBoard.map(row => [...row]));
-    setBoard(newBoard.map(row => [...row]));
-    setNotes(
-      Array(9)
-        .fill(null)
-        .map(() => Array(9).fill([])),
-    );
-
-    setSelectedCell(null);
-    setHighlightedCell(null);
-    setShakingCell(null);
-    setTutorMessage(null);
-    setConflictingCell(null);
-    setLastMovedCell(null);
-    setCompletedUnits([]);
-    setIsSolved(false);
-    setIsPaused(false);
-    setIsNoteMode(false);
-    setMistakeCount(0);
-    setHintCount(0);
-    timerRef.current = 0;
-    setGameKey(prev => prev + 1);
-    setIsTimerRunning(true);
-
-    setCurrentDifficulty(difficulty);
-    setGameState('playing');
-  };
-
-  const handleNewGamePress = () => {
-    setIsDifficultyModalVisible(true);
-  };
-
-  const handleReturnToHome = () => {
-    setGameState('selecting');
-    setIsSolved(false);
-  };
-
-  const handleCellPress = (row: number, col: number) => {
-    if (isSolved || isPaused || isSettingsOpen) return;
-
-    setSelectedCell({ row, col });
-    setHighlightedCell(null);
-    setTutorMessage(null);
-    setConflictingCell(null);
-  };
-
-  const handleNumberPress = (num: number) => {
-    if (!selectedCell || isSolved || isPaused || isSettingsOpen) return;
-
-    const { row, col } = selectedCell;
-    if (initialBoard[row][col] !== null) return;
-
-    if (isNoteMode) {
-      if (board[row][col] !== null) return;
-
-      setNotes(prev => {
-        const newNotes = [...prev];
-        newNotes[row] = [...prev[row]];
-        const currentNotes = newNotes[row][col];
-        if (currentNotes.includes(num)) {
-          newNotes[row][col] = currentNotes.filter(n => n !== num);
-        } else {
-          newNotes[row][col] = [...currentNotes, num].sort();
+  // Initialize game with proper difficulty if not scanned
+  useEffect(() => {
+    // Only initialize if the board is empty to prevent overwrites or loops
+    if (game.board.length === 0) {
+      if (savedGameState) {
+        game.loadSavedGame(savedGameState);
+        if (justResumed) {
+          // If we just resumed from the menu, we want to play immediately
+          game.setIsPaused(false);
         }
-        return newNotes;
-      });
-      return;
-    }
-
-    const conflict = checkConflict(board, row, col, num);
-    if (conflict) {
-      setTutorMessage({
-        row,
-        col,
-        text: { key: conflict.key, params: conflict.params },
-      });
-      setConflictingCell(conflict.conflictingCell);
-      setShakingCell({ row, col });
-      setMistakeCount(prev => prev + 1);
-      setTimeout(() => setShakingCell(null), 500);
-    } else {
-      setTutorMessage(null);
-      setConflictingCell(null);
-    }
-
-    const newBoard = [...board];
-    newBoard[row] = [...newBoard[row]];
-    newBoard[row][col] = num;
-
-    setBoard(newBoard);
-
-    setNotes(prev => {
-      const newNotes = [...prev];
-      newNotes[row] = [...prev[row]];
-      newNotes[row][col] = [];
-      return newNotes;
-    });
-
-    if (!conflict) {
-      const completions = checkCompletion(newBoard, row, col);
-      if (completions.length > 0) {
-        setLastMovedCell({ row, col });
-        setCompletedUnits(completions);
-        setTimeout(() => setCompletedUnits([]), 1500);
-      }
-
-      if (isGameSolved(newBoard)) {
-        setIsSolved(true);
-        setIsTimerRunning(false);
-
-        dispatch(recordWin(currentDifficulty));
+      } else if (!scannedBoard) {
+        game.startNewGame(initialDifficulty);
       }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scannedBoard, savedGameState]);
 
-  const handleClearPress = () => {
-    if (!selectedCell || isPaused || isSettingsOpen) return;
-
-    const { row, col } = selectedCell;
-    if (initialBoard[row][col] !== null) return;
-
-    const newBoard = [...board];
-    newBoard[row] = [...newBoard[row]];
-    newBoard[row][col] = null;
-    setBoard(newBoard);
-    setTutorMessage(null);
-
-    setNotes(prev => {
-      const newNotes = [...prev];
-      newNotes[row] = [...prev[row]];
-      newNotes[row][col] = [];
-      return newNotes;
-    });
-  };
-
-  const handleHintPress = () => {
-    if (isSolved || isPaused || isSettingsOpen) return;
-
-    setHintCount(prev => prev + 1);
-    const hint = getHint(board);
-    if (hint) {
-      if (hint.cell) {
-        setHighlightedCell(hint.cell);
-        setSelectedCell(hint.cell);
-        setTutorMessage({
-          row: hint.cell.row,
-          col: hint.cell.col,
-          text: { key: hint.key, params: hint.params },
-        });
-      } else {
-        showAlert(t('hintHeader'), t(hint.key, hint.params));
+  // Save game state on unmount or background
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState !== 'active') {
+        // Force pause immediately via ref to avoid state closure issues
+        gameRef.current.setIsPaused(true);
+        saveGame();
       }
-    } else {
-      showAlert(t('goodJob'), t('boardSolved'));
-    }
-  };
+    };
 
-  if (gameState === 'selecting') {
-    return (
-      <LevelSelection
-        onSelectDifficulty={startNewGame}
-        isDarkMode={isDarkMode}
-        gamesWon={gamesWon}
-      />
+    const saveGame = async () => {
+      const currentGame = gameRef.current;
+      if (
+        !isManualExit.current &&
+        !currentGame.isSolved &&
+        currentGame.board.length > 0
+      ) {
+        const gameState = {
+          board: currentGame.board,
+          initialBoard: currentGame.initialBoard,
+          notes: currentGame.notes,
+          mistakeCount: currentGame.mistakeCount,
+          hintCount: currentGame.hintCount,
+          timer: currentGame.timerRef.current,
+          difficulty: currentGame.currentDifficulty,
+          solution: currentGame.solution,
+          history: [],
+        };
+        try {
+          const AsyncStorage =
+            require('@react-native-async-storage/async-storage').default;
+          await AsyncStorage.setItem('saved_game', JSON.stringify(gameState));
+        } catch (e) {
+          console.error('Failed to save game', e);
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
     );
-  }
 
-  if (board.length === 0) {
-    return (
-      <View className="flex-1 items-center justify-center">
-        <Text>{t('loading')}</Text>
-      </View>
+    return () => {
+      saveGame();
+      subscription.remove();
+    };
+  }, []); // Run ONCE on mount
+
+  // Intercept onExit to set the manual flag
+  const handleExit = () => {
+    isManualExit.current = true;
+    // Also clear any saved game since we are abandoning it
+    const AsyncStorage =
+      require('@react-native-async-storage/async-storage').default;
+    AsyncStorage.removeItem('saved_game').catch((e: any) =>
+      console.error('Failed to clear saved game', e),
     );
+    onExit();
+  };
+
+  // Save game state on unmount ONLY if not manual exit and not solved
+  useEffect(() => {
+    return () => {
+      if (!isManualExit.current && !game.isSolved && game.board.length > 0) {
+        const saveGame = async () => {
+          const gameState = {
+            board: game.board,
+            initialBoard: game.initialBoard,
+            notes: game.notes,
+            mistakeCount: game.mistakeCount,
+            hintCount: game.hintCount,
+            timer: game.timerRef.current,
+            difficulty: game.currentDifficulty,
+            solution: game.solution,
+            history: [],
+          };
+          try {
+            const AsyncStorage =
+              require('@react-native-async-storage/async-storage').default;
+            await AsyncStorage.setItem('saved_game', JSON.stringify(gameState));
+          } catch (e) {
+            console.error('Failed to save game', e);
+          }
+        };
+        saveGame();
+      }
+    };
+  }, [
+    game.board,
+    game.initialBoard,
+    game.notes,
+    game.mistakeCount,
+    game.hintCount,
+    game.currentDifficulty,
+    game.isSolved,
+  ]);
+
+  if (game.board.length === 0) {
+    return null;
   }
 
   return (
     <View className="items-center w-full relative z-0">
-      <DifficultyModal
-        visible={isDifficultyModalVisible}
-        onClose={() => setIsDifficultyModalVisible(false)}
-        onSelect={startNewGame}
-        isDarkMode={isDarkMode}
-        gamesWon={gamesWon}
-      />
-      {isSolved && (
+      {game.isSolved && (
         <ResultScreen
-          mistakes={mistakeCount}
-          hints={hintCount}
-          timeInSeconds={timerRef.current}
-          onNewGame={handleReturnToHome}
+          mistakes={game.mistakeCount}
+          hints={game.hintCount}
+          timeInSeconds={game.timerRef.current}
+          onNewGame={handleExit}
         />
       )}
       <View
@@ -343,18 +191,18 @@ export const Board: React.FC<BoardProps> = ({
       >
         <View className="flex-row" style={{ gap: wp(6) }}>
           <GameTimer
-            key={gameKey}
+            key={game.gameKey}
             isRunning={
-              isTimerRunning &&
-              !isPaused &&
-              !isSolved &&
+              game.isTimerRunning &&
+              !game.isPaused &&
+              !game.isSolved &&
               !isSettingsOpen &&
               isFocused
             }
-            isDarkMode={isDarkMode}
-            initialTime={0}
-            onTimeUpdate={t => {
-              timerRef.current = t;
+            isDarkMode={game.isDarkMode}
+            initialTime={game.timerRef.current}
+            onTimeUpdate={tVal => {
+              game.timerRef.current = tVal;
             }}
           />
           <View className="flex-row items-center">
@@ -367,7 +215,7 @@ export const Board: React.FC<BoardProps> = ({
               className="text-red-500 font-bold"
               style={{ marginLeft: wp(1), fontSize: wp(5) }}
             >
-              {mistakeCount}
+              {game.mistakeCount}
             </Text>
           </View>
           <View className="flex-row items-center">
@@ -380,27 +228,27 @@ export const Board: React.FC<BoardProps> = ({
               className="text-yellow-600 font-bold"
               style={{ marginLeft: wp(1), fontSize: wp(5) }}
             >
-              {hintCount}
+              {game.hintCount}
             </Text>
           </View>
         </View>
         <TouchableOpacity
-          onPress={() => setIsPaused(!isPaused)}
-          className={`${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
+          onPress={game.togglePause}
+          className={`${game.isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
           style={{ padding: wp(2), borderRadius: 9999 }}
         >
           <MaterialCommunityIcons
-            name={isPaused ? 'play' : 'pause'}
+            name={game.isPaused ? 'play' : 'pause'}
             size={wp(7)}
-            color={isDarkMode ? '#E5E7EB' : '#4B5563'}
+            color={game.isDarkMode ? '#E5E7EB' : '#4B5563'}
           />
         </TouchableOpacity>
       </View>
       <View className="relative">
-        {isPaused && (
+        {game.isPaused && (
           <View
             className={`absolute inset-0 z-50 items-center justify-center border-4 ${
-              isDarkMode
+              game.isDarkMode
                 ? 'bg-gray-800 border-gray-700'
                 : 'bg-white border-gray-200'
             }`}
@@ -408,14 +256,14 @@ export const Board: React.FC<BoardProps> = ({
           >
             <Text
               className={`text-4xl font-bold ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                game.isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`}
               style={{ fontSize: wp(10), lineHeight: wp(10) }}
             >
               {t('paused')}
             </Text>
             <TouchableOpacity
-              onPress={() => setIsPaused(false)}
+              onPress={() => game.setIsPaused(false)}
               className="bg-blue-500"
               style={{
                 paddingHorizontal: wp(7),
@@ -431,7 +279,7 @@ export const Board: React.FC<BoardProps> = ({
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={handleReturnToHome}
+              onPress={handleExit}
               className="bg-red-500"
               style={{
                 paddingHorizontal: wp(7),
@@ -448,204 +296,42 @@ export const Board: React.FC<BoardProps> = ({
             </TouchableOpacity>
           </View>
         )}
-        <View
-          className={`border-4 shadow-2xl elevation-10 z-10 ${
-            isDarkMode ? 'border-gray-600 bg-gray-900' : 'border-black bg-white'
-          } ${isPaused ? 'opacity-0' : 'opacity-100'}`}
-        >
-          {board.map((row, rowIndex) => {
-            const isBubbleRow = tutorMessage?.row === rowIndex;
-            const rowZIndex = isBubbleRow ? 'z-50 elevation-50' : 'z-10';
-            return (
-              <View key={rowIndex} className={`flex-row ${rowZIndex}`}>
-                {row.map((cellValue, colIndex) => {
-                  const borderRight =
-                    (colIndex + 1) % 3 === 0 && colIndex !== 8
-                      ? `border-r-2 ${
-                          isDarkMode ? 'border-r-gray-800' : 'border-r-black'
-                        }`
-                      : '';
-                  const borderBottom =
-                    (rowIndex + 1) % 3 === 0 && rowIndex !== 8
-                      ? `border-b-2 ${
-                          isDarkMode ? 'border-b-gray-800' : 'border-b-black'
-                        }`
-                      : '';
-                  const isEditable = initialBoard[rowIndex][colIndex] === null;
-                  let isInvalid = false;
-                  if (cellValue !== null) {
-                    if (!isValidMove(board, rowIndex, colIndex, cellValue)) {
-                      isInvalid = true;
-                    }
-                  }
-                  const isHinted =
-                    highlightedCell?.row === rowIndex &&
-                    highlightedCell?.col === colIndex;
-                  const isSelected =
-                    selectedCell?.row === rowIndex &&
-                    selectedCell?.col === colIndex;
-                  const isRelated = selectedCell
-                    ? (selectedCell.row === rowIndex ||
-                        selectedCell.col === colIndex) &&
-                      !isSelected
-                    : false;
-                  const shouldShake =
-                    shakingCell?.row === rowIndex &&
-                    shakingCell?.col === colIndex;
-                  const isConflictSource =
-                    conflictingCell?.row === rowIndex &&
-                    conflictingCell?.col === colIndex;
-                  const showBubble =
-                    tutorMessage?.row === rowIndex &&
-                    tutorMessage?.col === colIndex;
-                  const zIndexClass = showBubble ? 'z-50 elevation-50' : 'z-20';
-
-                  const isSuccess = completedUnits.some(unit => {
-                    if (unit.type === 'row') return unit.index === rowIndex;
-                    if (unit.type === 'col') return unit.index === colIndex;
-                    if (unit.type === 'box') {
-                      const boxRow = Math.floor(rowIndex / 3);
-                      const boxCol = Math.floor(colIndex / 3);
-                      return unit.index === boxRow * 3 + boxCol;
-                    }
-                    return false;
-                  });
-
-                  const currentCandidates =
-                    notes.length > rowIndex && notes[rowIndex].length > colIndex
-                      ? notes[rowIndex][colIndex]
-                      : [];
-
-                  return (
-                    <View
-                      key={`${rowIndex}-${colIndex}`}
-                      className={`${borderRight} ${borderBottom} relative ${zIndexClass}`}
-                    >
-                      <Cell
-                        value={cellValue}
-                        candidates={currentCandidates}
-                        onPress={() => handleCellPress(rowIndex, colIndex)}
-                        isSelected={isSelected}
-                        isRelated={isRelated}
-                        isConflictSource={isConflictSource}
-                        isEditable={isEditable}
-                        isInvalid={isInvalid}
-                        shouldShake={shouldShake}
-                        isSuccess={isSuccess}
-                        successDelay={
-                          isSuccess && lastMovedCell
-                            ? (Math.abs(rowIndex - lastMovedCell.row) +
-                                Math.abs(colIndex - lastMovedCell.col)) *
-                              50
-                            : 0
-                        }
-                        isDarkMode={isDarkMode}
-                        size={cellSize}
-                      />
-                      {isHinted && (
-                        <View className="absolute inset-0 bg-yellow-300 opacity-50 pointer-events-none" />
-                      )}
-                      {showBubble && tutorMessage && (
-                        <TutorBubble
-                          message={
-                            t(
-                              tutorMessage.text.key,
-                              tutorMessage.text.params,
-                            ) as string
-                          }
-                          onDismiss={() => setTutorMessage(null)}
-                          position={rowIndex < 4 ? 'below' : 'above'}
-                          align={colIndex < 4 ? 'left' : 'right'}
-                        />
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })}
+        <View className={game.isPaused ? 'opacity-0' : 'opacity-100'}>
+          <SudokuGrid
+            board={game.board}
+            initialBoard={game.initialBoard}
+            notes={game.notes}
+            selectedCell={game.selectedCell}
+            highlightedCell={game.highlightedCell}
+            shakingCell={game.shakingCell}
+            lastMovedCell={game.lastMovedCell}
+            tutorMessage={game.tutorMessage}
+            conflictingCell={game.conflictingCell}
+            completedUnits={game.completedUnits}
+            isDarkMode={game.isDarkMode}
+            onCellPress={game.handleCellPress}
+            onDismissTutorMessage={() => game.setTutorMessage(null)}
+            t={t}
+          />
         </View>
       </View>
       <NumberPad
-        onNumberPress={handleNumberPress}
-        completedNumbers={completedNumbers}
-        isDarkMode={isDarkMode}
+        onNumberPress={game.handleNumberPress}
+        completedNumbers={game.completedNumbers}
+        isDarkMode={game.isDarkMode}
+        isPaused={game.isPaused}
       />
-      <View className="flex-row" style={{ gap: wp(8), marginTop: wp(2) }}>
-        <TouchableOpacity
-          onPress={() => setIsNoteMode(!isNoteMode)}
-          className={`items-center justify-center rounded-full active:opacity-60 relative
-             ${
-               isNoteMode
-                 ? isDarkMode
-                   ? 'bg-blue-900 border border-blue-500'
-                   : 'bg-blue-100 border border-blue-500'
-                 : 'bg-transparent'
-             }
-          `}
-          style={{ padding: wp(3) }}
-        >
-          <MaterialCommunityIcons
-            name="pencil"
-            size={wp(8)}
-            color={
-              isDarkMode
-                ? isNoteMode
-                  ? '#60A5FA'
-                  : '#9CA3AF'
-                : isNoteMode
-                ? '#2563EB'
-                : '#4B5563'
-            }
-          />
-          <View
-            className={`absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center
-               ${
-                 isNoteMode
-                   ? isDarkMode
-                     ? 'bg-blue-500'
-                     : 'bg-blue-600'
-                   : 'opacity-0'
-               }
-           `}
-          >
-            <Text className="text-white text-xs font-bold">ON</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleHintPress}
-          className="items-center justify-center rounded-full active:opacity-60"
-          style={{ padding: wp(3) }}
-        >
-          <MaterialCommunityIcons
-            name="lightbulb-on-outline"
-            size={wp(8)}
-            color={isDarkMode ? '#FCD34D' : '#EAB308'}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleClearPress}
-          className="items-center justify-center rounded-full active:opacity-60"
-          style={{ padding: wp(3) }}
-        >
-          <MaterialCommunityIcons
-            name="backspace-outline"
-            size={wp(8)}
-            color={isDarkMode ? '#F87171' : '#EF4444'}
-          />
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={handleNewGamePress}
-          className="items-center justify-center rounded-full active:opacity-60"
-          style={{ padding: wp(3) }}
-        >
-          <MaterialCommunityIcons
-            name="refresh"
-            size={wp(8)}
-            color={isDarkMode ? '#9CA3AF' : '#4B5563'}
-          />
-        </TouchableOpacity>
-      </View>
+      <GameControls
+        isDarkMode={game.isDarkMode}
+        isNoteMode={game.isNoteMode}
+        onToggleNoteMode={game.toggleNoteMode}
+        onHintPress={game.handleHintPress}
+        onClearPress={game.handleClearPress}
+        onUndoPress={game.handleUndo}
+        isHintActive={game.tutorMessage !== null}
+        isPaused={game.isPaused}
+        canUndo={game.history.length > 0}
+      />
     </View>
   );
 };

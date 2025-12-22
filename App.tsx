@@ -13,7 +13,7 @@ import {
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { GameScreen } from './src/screens/GameScreen';
+import { PlayScreen } from './src/screens/PlayScreen';
 import { TutorialsScreen } from './src/screens/TutorialsScreen';
 import { ScanScreen } from './src/screens/ScanScreen';
 import { StatusBar } from 'react-native';
@@ -23,16 +23,44 @@ import { AlertProvider } from './src/context/AlertContext';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
-import { hydrateUser } from './src/store/userSlice';
-import { ActivityIndicator, View, useColorScheme } from 'react-native';
+import { hydrateUser, setGamesWon } from './src/store/userSlice';
+import {
+  ActivityIndicator,
+  View,
+  useColorScheme,
+  Platform,
+} from 'react-native';
 import { setDarkMode } from './src/store/themeSlice';
 import { setCompletedTutorials } from './src/store/progressSlice';
-import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
-import { useResposive } from './src/hooks/useResponsive';
+import {
+  widthPercentageToDP as wp,
+  heightPercentageToDP as hp,
+} from 'react-native-responsive-screen';
+import { useResponsive } from './src/hooks/useResponsive';
+import LottieView from 'lottie-react-native';
+
+import { UpdateModal } from './src/components/UpdateModal';
+
+// Constants
+const CURRENT_VERSION = '1.2.1';
+const VERSION_URL =
+  'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
+
+const compareVersions = (v1: string, v2: string) => {
+  const parts1 = v1.split('.').map(Number);
+  const parts2 = v2.split('.').map(Number);
+  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 > p2) return 1;
+    if (p1 < p2) return -1;
+  }
+  return 0;
+};
 
 const Tab = createBottomTabNavigator();
 const MainApp = () => {
-  const r = useResposive();
+  const r = useResponsive();
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
@@ -40,37 +68,74 @@ const MainApp = () => {
   const systemScheme = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(true);
 
+  const [isSplashFinished, setIsSplashFinished] = React.useState(false);
+
+  // Update Check State
+  const [isUpdateRequired, setIsUpdateRequired] = React.useState(false);
+  const [storeUrl, setStoreUrl] = React.useState('');
+
+  React.useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const response = await fetch(VERSION_URL);
+        if (response.ok) {
+          const data = await response.json();
+          // Assuming JSON format: { "version": "1.0.0", "storeUrl": "..." }
+          // Or platform specific: { "android": "...", "ios": "...", "storeUrl": "..." }
+          const latestVersion =
+            data.version || (Platform.OS === 'ios' ? data.ios : data.android);
+          const url = data.storeUrl;
+
+          if (
+            latestVersion &&
+            compareVersions(latestVersion, CURRENT_VERSION) > 0
+          ) {
+            setStoreUrl(
+              url ||
+                'https://play.google.com/store/apps/details?id=com.tutorsudoku',
+            );
+            setIsUpdateRequired(true);
+          }
+        }
+      } catch (error) {
+        console.warn('Version check failed', error);
+      }
+    };
+    checkVersion();
+  }, []);
+
   React.useEffect(() => {
     const checkUser = async () => {
       try {
-        // Load Theme Preference
         const themeData = await AsyncStorage.getItem('user_theme');
         if (themeData !== null) {
           const isDark = JSON.parse(themeData);
           dispatch(setDarkMode(isDark));
         } else {
-          // Fallback to system preference
           dispatch(setDarkMode(systemScheme === 'dark'));
         }
 
-        // Load Onboarding Data
         const userData = await AsyncStorage.getItem('user_onboarding');
         if (userData) {
           const parsed = JSON.parse(userData);
           dispatch(hydrateUser(parsed));
         }
 
-        // Load Language Preference
         const langData = await AsyncStorage.getItem('user_language');
         if (langData) {
           i18n.changeLanguage(langData);
         }
 
-        // Load Progress Data
         const progressData = await AsyncStorage.getItem('user_progress');
         if (progressData) {
           const parsedProgress = JSON.parse(progressData);
           dispatch(setCompletedTutorials(parsedProgress));
+        }
+
+        const winsData = await AsyncStorage.getItem('user_wins');
+        if (winsData) {
+          const parsedWins = JSON.parse(winsData);
+          dispatch(setGamesWon(parsedWins));
         }
       } catch (e) {
         console.error(e);
@@ -80,6 +145,22 @@ const MainApp = () => {
     };
     checkUser();
   }, [dispatch]);
+
+  React.useEffect(() => {
+    const saveWins = async () => {
+      try {
+        const gamesWon = store.getState().user.gamesWon;
+        await AsyncStorage.setItem('user_wins', JSON.stringify(gamesWon));
+      } catch (e) {
+        console.error('Failed to save wins', e);
+      }
+    };
+    // Subscribe to store changes for gamesWon specifically
+    const unsubscribe = store.subscribe(() => {
+      saveWins();
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Custom Navigation Themes
   const MyLightTheme = {
@@ -103,7 +184,7 @@ const MainApp = () => {
     },
   };
 
-  if (isLoading) {
+  if (isLoading || !isSplashFinished) {
     return (
       <SafeAreaProvider
         style={{ backgroundColor: isDarkMode ? '#111827' : '#ffffff' }}
@@ -116,7 +197,13 @@ const MainApp = () => {
             alignItems: 'center',
           }}
         >
-          <ActivityIndicator size="large" color="#3B82F6" />
+          <LottieView
+            source={require('./src/assets/splash_animation.json')}
+            autoPlay
+            loop={false}
+            onAnimationFinish={() => setIsSplashFinished(true)}
+            style={{ width: wp(50), height: wp(50) }}
+          />
         </View>
       </SafeAreaProvider>
     );
@@ -156,7 +243,7 @@ const MainApp = () => {
       />
       <SafeAreaView
         style={{ flex: 1, backgroundColor: isDarkMode ? '#111827' : '#eff6ff' }}
-        edges={['top', 'left', 'right']}
+        edges={['top', 'left', 'right', 'bottom']}
       >
         <NavigationContainer theme={isDarkMode ? MyDarkTheme : MyLightTheme}>
           <Tab.Navigator
@@ -164,9 +251,13 @@ const MainApp = () => {
               headerShown: false,
               tabBarStyle: {
                 backgroundColor: isDarkMode ? '#1F2937' : '#ffffff',
+                height: r.isTablet ? hp(10) : hp(8),
+                paddingBottom: r.isTablet ? hp(2) : hp(2),
+                paddingTop: r.isTablet ? hp(1) : hp(1),
               },
               tabBarLabelStyle: {
                 fontSize: r.isTablet ? wp(2.5) : wp(3.5),
+                lineHeight: r.isTablet ? wp(3) : wp(5),
                 fontWeight: '600',
               },
               tabBarActiveTintColor: '#3B82F6',
@@ -175,18 +266,29 @@ const MainApp = () => {
           >
             <Tab.Screen
               name="Play"
-              component={GameScreen}
               options={{
                 tabBarLabel: t('navPlay'),
                 tabBarIcon: ({ color }) => (
                   <MaterialCommunityIcons
                     name="puzzle-outline"
                     color={color}
-                    size={r.isTablet ? wp(3) : wp(8)}
+                    size={r.isTablet ? wp(3) : wp(7)}
                   />
                 ),
               }}
-            />
+            >
+              {props => (
+                <PlayScreen
+                  {...props}
+                  onTriggerUpdate={() => {
+                    setStoreUrl(
+                      'https://play.google.com/store/apps/details?id=com.tutorsudoku',
+                    );
+                    setIsUpdateRequired(true);
+                  }}
+                />
+              )}
+            </Tab.Screen>
             <Tab.Screen
               name="Scan"
               component={ScanScreen}
@@ -196,7 +298,7 @@ const MainApp = () => {
                   <MaterialCommunityIcons
                     name="camera-outline"
                     color={color}
-                    size={r.isTablet ? wp(3) : wp(8)}
+                    size={r.isTablet ? wp(3) : wp(7)}
                   />
                 ),
               }}
@@ -210,7 +312,7 @@ const MainApp = () => {
                   <MaterialCommunityIcons
                     name="school-outline"
                     color={color}
-                    size={r.isTablet ? wp(3) : wp(8)}
+                    size={r.isTablet ? wp(3) : wp(7)}
                   />
                 ),
               }}
@@ -218,6 +320,11 @@ const MainApp = () => {
           </Tab.Navigator>
         </NavigationContainer>
       </SafeAreaView>
+      <UpdateModal
+        visible={isUpdateRequired}
+        storeUrl={storeUrl}
+        isDarkMode={isDarkMode}
+      />
     </SafeAreaProvider>
   );
 };

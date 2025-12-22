@@ -82,7 +82,7 @@ export const TutorialsScreen: React.FC = () => {
   return (
     <View
       className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-blue-50'}`}
-      style={{ paddingHorizontal: wp(6), paddingTop: hp(6) }}
+      style={{ paddingHorizontal: wp(6), paddingTop: hp(4) }}
     >
       <View style={{ marginBottom: wp(2) }}>
         <Text

@@ -64,7 +64,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
   const { t } = useTranslation();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
-  const totalWidth = wp('85%');
+  const totalWidth = wp('95%');
   const cellSize = Math.floor((totalWidth - 16) / 9);
 
   const currentStep = lesson.steps[currentStepIndex];

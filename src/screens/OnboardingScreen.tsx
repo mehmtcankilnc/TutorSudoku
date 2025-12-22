@@ -201,7 +201,15 @@ export const OnboardingScreen: React.FC = () => {
 
       {/* Footer Navigation */}
       {step > 0 && (
-        <View style={{ padding: wp(6) }}>
+        <View
+          style={{
+            position: 'absolute',
+            bottom: wp(8), // Just a little bit up from bottom
+            left: 0,
+            right: 0,
+            paddingHorizontal: wp(6),
+          }}
+        >
           <StepIndicator
             currentStep={step}
             totalSteps={steps.length}

@@ -55,9 +55,22 @@ const userSlice = createSlice({
       }
       state.gamesWon[action.payload] += 1;
     },
+    setGamesWon: (state, action: PayloadAction<UserState['gamesWon']>) => {
+      state.gamesWon = action.payload;
+    },
+    resetOnboarding: state => {
+      state.isOnboarded = false;
+      state.skillLevel = null;
+      state.playFrequency = null;
+    },
   },
 });
 
-export const { setOnboardingComplete, hydrateUser, recordWin } =
-  userSlice.actions;
+export const {
+  setOnboardingComplete,
+  hydrateUser,
+  recordWin,
+  setGamesWon,
+  resetOnboarding,
+} = userSlice.actions;
 export default userSlice.reducer;

@@ -30,16 +30,19 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       style={{ padding: wp(6), borderRadius: wp(4), gap: wp(8) }}
     >
       <View className="items-center" style={{ gap: wp(2) }}>
-        <Text className="text-5xl" style={{ fontSize: wp(12) }}>
-          🎉
-        </Text>
+        <Text style={{ fontSize: wp(10), lineHeight: wp(12) }}>🎉</Text>
         <Text
-          className="text-3xl font-bold text-blue-900"
-          style={{ fontSize: wp(10) }}
+          className="font-bold text-blue-900"
+          style={{ fontSize: wp(9), lineHeight: wp(11) }}
         >
           {t('solved')}
         </Text>
-        <Text className="text-gray-500 font-medium">{t('greatJob')}</Text>
+        <Text
+          className="text-gray-500 font-medium"
+          style={{ fontSize: wp(4), lineHeight: wp(6) }}
+        >
+          {t('greatJob')}
+        </Text>
       </View>
       <View
         className="w-full bg-blue-50 space-y-4"

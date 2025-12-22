@@ -9,6 +9,7 @@ interface CellProps {
   onPress?: () => void;
   isSelected?: boolean;
   isRelated?: boolean;
+  isSameValue?: boolean;
   isConflictSource?: boolean;
   isEditable?: boolean;
   isInvalid?: boolean;
@@ -17,6 +18,8 @@ interface CellProps {
   successDelay?: number;
   isDarkMode?: boolean;
   size?: number;
+  showRightBorder?: boolean;
+  showBottomBorder?: boolean;
 }
 
 export const Cell = React.memo<CellProps>(
@@ -26,6 +29,7 @@ export const Cell = React.memo<CellProps>(
     onPress,
     isSelected,
     isRelated,
+    isSameValue,
     isConflictSource,
     isEditable = true,
     isInvalid = false,
@@ -34,6 +38,8 @@ export const Cell = React.memo<CellProps>(
     successDelay = 0,
     isDarkMode = false,
     size = 40,
+    showRightBorder = true,
+    showBottomBorder = true,
   }) => {
     const shakeAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -42,19 +48,25 @@ export const Cell = React.memo<CellProps>(
     // Shake Animation (Wrong Move)
     useEffect(() => {
       if (shouldShake) {
+        shakeAnim.setValue(0);
         Animated.sequence([
           Animated.timing(shakeAnim, {
-            toValue: 5,
+            toValue: 10,
             duration: 50,
             useNativeDriver: true,
           }),
           Animated.timing(shakeAnim, {
-            toValue: -5,
+            toValue: -10,
             duration: 50,
             useNativeDriver: true,
           }),
           Animated.timing(shakeAnim, {
-            toValue: 5,
+            toValue: 10,
+            duration: 50,
+            useNativeDriver: true,
+          }),
+          Animated.timing(shakeAnim, {
+            toValue: -10,
             duration: 50,
             useNativeDriver: true,
           }),
@@ -67,37 +79,40 @@ export const Cell = React.memo<CellProps>(
       }
     }, [shouldShake]);
 
-    // Success Wave Animation
+    // Success Wave/Shining Animation
     useEffect(() => {
       if (isSuccess) {
+        // Shine/Pulse loop
         Animated.sequence([
           Animated.delay(successDelay),
           Animated.parallel([
-            Animated.sequence([
-              Animated.timing(scaleAnim, {
-                toValue: 1.1,
-                duration: 100,
-                useNativeDriver: true,
-              }),
-              Animated.timing(scaleAnim, {
-                toValue: 1,
-                duration: 100,
-                useNativeDriver: true,
-              }),
-            ]),
-            Animated.timing(successAnim, {
-              toValue: 1,
+            Animated.timing(scaleAnim, {
+              toValue: 1.15,
               duration: 200,
+              useNativeDriver: true,
+            }),
+            Animated.timing(successAnim, {
+              toValue: 0.6, // Semi-transparent overlay for "shine"
+              duration: 200,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scaleAnim, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(successAnim, {
+              toValue: 0, // Fade out completely
+              duration: 300,
               useNativeDriver: true,
             }),
           ]),
         ]).start();
       } else {
-        Animated.timing(successAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }).start();
+        successAnim.setValue(0);
+        scaleAnim.setValue(1);
       }
     }, [isSuccess, successDelay]);
 
@@ -114,27 +129,34 @@ export const Cell = React.memo<CellProps>(
             height: size,
             transform: [{ translateX: shakeAnim }, { scale: scaleAnim }],
           }}
-          className={`border items-center justify-center overflow-hidden relative
-            ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}
+          className={`items-center justify-center overflow-hidden relative
+            ${showRightBorder ? 'border-r' : ''} ${
+            showBottomBorder ? 'border-b' : ''
+          }
+            ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}
             ${
               isSelected
                 ? isDarkMode
-                  ? 'bg-blue-800'
-                  : 'bg-blue-300'
+                  ? 'bg-blue-900'
+                  : 'bg-blue-200'
                 : isConflictSource
                 ? isDarkMode
-                  ? 'bg-red-900 border-red-700 border-2'
-                  : 'bg-red-200 border-red-500 border-2'
+                  ? 'bg-red-900 border-red-700'
+                  : 'bg-red-200 border-red-500'
+                : isSameValue
+                ? isDarkMode
+                  ? 'bg-indigo-900'
+                  : 'bg-indigo-200'
                 : isRelated
                 ? isDarkMode
-                  ? 'bg-gray-800'
+                  ? 'bg-blue-900/40'
                   : 'bg-blue-100'
                 : isEditable
                 ? isDarkMode
                   ? 'bg-gray-900'
                   : 'bg-white'
                 : isDarkMode
-                ? 'bg-slate-800'
+                ? 'bg-gray-800'
                 : 'bg-gray-100'
             }`}
         >

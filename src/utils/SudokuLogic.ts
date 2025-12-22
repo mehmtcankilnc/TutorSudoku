@@ -61,7 +61,7 @@ export const isValidMove = (
   return checkConflict(board, row, col, value) === null;
 };
 
-const solve = (board: BoardType): boolean => {
+export const solve = (board: BoardType): boolean => {
   for (let row = 0; row < 9; row++) {
     for (let col = 0; col < 9; col++) {
       if (board[row][col] === null) {
@@ -84,11 +84,12 @@ const solve = (board: BoardType): boolean => {
 
 export const generateSudoku = (
   difficulty: 'easy' | 'medium' | 'hard' = 'easy',
-): BoardType => {
+): { puzzle: BoardType; solution: BoardType } => {
   const board: BoardType = Array(9)
     .fill(null)
     .map(() => Array(9).fill(null));
   solve(board);
+  const solution = board.map(row => [...row]);
 
   // Difficulty adjustments
   const attempts =
@@ -104,7 +105,7 @@ export const generateSudoku = (
     }
     newBoard[row][col] = null;
   }
-  return newBoard;
+  return { puzzle: newBoard, solution };
 };
 
 export const getPossibleValues = (

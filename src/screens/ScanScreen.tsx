@@ -115,6 +115,52 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
     }
   };
 
+  const handleGalleryLaunch = async () => {
+    try {
+      const cropperTheme = isDarkMode
+        ? {
+            toolbar: '#1F2937',
+            status: '#111827',
+            widget: '#FFFFFF',
+            active: '#60A5FA',
+          }
+        : {
+            toolbar: '#FFFFFF',
+            status: '#E5E7EB',
+            widget: '#111827',
+            active: '#3B82F6',
+          };
+
+      const image = await ImagePicker.openPicker({
+        mediaType: 'photo',
+        cropping: true,
+        freeStyleCropEnabled: true,
+        width: 1000,
+        height: 1000,
+        includeBase64: false,
+        cropperToolbarTitle: t('alignGrid'),
+        hideBottomControls: false,
+        enableRotationGesture: true,
+        cropperToolbarColor: cropperTheme.toolbar,
+        cropperStatusBarColor: cropperTheme.status,
+        cropperToolbarWidgetColor: cropperTheme.widget,
+        cropperActiveWidgetColor: cropperTheme.active,
+        showCropGuidelines: true,
+      });
+
+      if (image && image.path) {
+        setImageUri(image.path);
+        setImageDims({ width: image.width, height: image.height });
+        setVerificationBoard(null);
+      }
+    } catch (error: any) {
+      if (error.code !== 'E_PICKER_CANCELLED') {
+        console.log('Error launching gallery:', error);
+        showAlert(t('error'), t('openGalleryError'));
+      }
+    }
+  };
+
   const parseSudokuFromText = (
     result: any,
     imgWidth: number,
@@ -235,7 +281,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
   return (
     <View
       className={`flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-blue-50'}`}
-      style={{ paddingHorizontal: wp(6), paddingTop: hp(6) }}
+      style={{ paddingHorizontal: wp(6), paddingTop: hp(4) }}
     >
       <View style={{ marginBottom: wp(2) }}>
         <Text
@@ -273,30 +319,57 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity
-            onPress={handleCameraLaunch}
-            className={`w-full aspect-square border-4 border-dashed items-center justify-center 
-                            ${
-                              isDarkMode
-                                ? 'border-gray-700 bg-gray-800'
-                                : 'border-gray-300 bg-white'
-                            }`}
-            style={{ borderRadius: wp(4), marginBottom: wp(4), gap: wp(5) }}
-          >
-            <MaterialCommunityIcons
-              name="camera-plus-outline"
-              size={wp(20)}
-              color={isDarkMode ? '#60A5FA' : '#3B82F6'}
-            />
-            <Text
-              className={`font-bold ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`}
-              style={{ fontSize: wp(4.5) }}
+          <View className="w-full" style={{ gap: wp(4) }}>
+            <TouchableOpacity
+              onPress={handleCameraLaunch}
+              className={`w-full border-4 border-dashed items-center justify-center 
+                              ${
+                                isDarkMode
+                                  ? 'border-gray-700 bg-gray-800'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+              style={{ height: hp(20), borderRadius: wp(5), gap: wp(3) }}
             >
-              {t('tapToCapture')}
-            </Text>
-          </TouchableOpacity>
+              <MaterialCommunityIcons
+                name="camera-plus-outline"
+                size={wp(12)}
+                color={isDarkMode ? '#60A5FA' : '#3B82F6'}
+              />
+              <Text
+                className={`font-bold text-center ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}
+                style={{ fontSize: wp(4.5) }}
+              >
+                {t('tapToCapture')}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleGalleryLaunch}
+              className={`w-full border-4 border-dashed items-center justify-center
+                              ${
+                                isDarkMode
+                                  ? 'border-gray-700 bg-gray-800'
+                                  : 'border-gray-300 bg-white'
+                              }`}
+              style={{ height: hp(20), borderRadius: wp(5), gap: wp(3) }}
+            >
+              <MaterialCommunityIcons
+                name="image-multiple-outline"
+                size={wp(12)}
+                color={isDarkMode ? '#60A5FA' : '#3B82F6'}
+              />
+              <Text
+                className={`font-bold text-center ${
+                  isDarkMode ? 'text-gray-300' : 'text-gray-600'
+                }`}
+                style={{ fontSize: wp(4.5) }}
+              >
+                {t('pickFromGallery')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {imageUri && (

@@ -1,6 +1,6 @@
 import { useWindowDimensions } from 'react-native';
 
-export const useResposive = () => {
+export const useResponsive = () => {
   const { width } = useWindowDimensions();
 
   return {

@@ -18,9 +18,11 @@ export const GameTimer: React.FC<GameTimerProps> = ({
 }) => {
   const [seconds, setSeconds] = useState(initialTime);
 
-  useEffect(() => {
-    setSeconds(initialTime);
-  }, [initialTime]);
+  const onTimeUpdateRef = React.useRef(onTimeUpdate);
+
+  React.useEffect(() => {
+    onTimeUpdateRef.current = onTimeUpdate;
+  }, [onTimeUpdate]);
 
   useEffect(() => {
     let interval: any;
@@ -29,7 +31,7 @@ export const GameTimer: React.FC<GameTimerProps> = ({
       interval = setInterval(() => {
         setSeconds(prev => {
           const next = prev + 1;
-          onTimeUpdate?.(next);
+          onTimeUpdateRef.current?.(next);
           return next;
         });
       }, 1000);
@@ -38,7 +40,7 @@ export const GameTimer: React.FC<GameTimerProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isRunning, onTimeUpdate]);
+  }, [isRunning]);
 
   const formatTime = (totalSeconds: number) => {
     const mins = Math.floor(totalSeconds / 60);

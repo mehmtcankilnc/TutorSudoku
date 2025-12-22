@@ -9,17 +9,24 @@ interface NumberPadProps {
   onNumberPress: (num: number) => void;
   completedNumbers?: number[];
   isDarkMode?: boolean;
+  isPaused?: boolean;
 }
 export const NumberPad: React.FC<NumberPadProps> = ({
   onNumberPress,
   completedNumbers = [],
   isDarkMode = false,
+  isPaused = false,
 }) => {
   const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];
   return (
     <View
       className="w-full"
-      style={{ marginTop: wp(3), paddingHorizontal: wp(2) }}
+      style={{
+        marginTop: wp(3),
+        paddingHorizontal: wp(2),
+        opacity: isPaused ? 0.3 : 1,
+      }}
+      pointerEvents={isPaused ? 'none' : 'auto'}
     >
       <View className="flex-row items-center">
         {numbers.map(num => {

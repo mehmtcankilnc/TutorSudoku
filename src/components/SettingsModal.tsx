@@ -5,27 +5,48 @@ import {
   TouchableOpacity,
   Modal,
   TouchableWithoutFeedback,
+  Animated,
 } from 'react-native';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { setDarkMode } from '../store/themeSlice';
+import { resetOnboarding } from '../store/userSlice';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface SettingsModalProps {
   visible: boolean;
   onClose: () => void;
+  onTestUpdate?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
   onClose,
+  onTestUpdate,
 }) => {
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
   const { t, i18n } = useTranslation();
+
+  const switchAnim = React.useRef(
+    new Animated.Value(isDarkMode ? 1 : 0),
+  ).current;
+
+  React.useEffect(() => {
+    Animated.timing(switchAnim, {
+      toValue: isDarkMode ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isDarkMode, switchAnim]);
+
+  const thumbTranslateX = switchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, wp(10)],
+  });
 
   /* duplicate removed */
 
@@ -86,38 +107,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {t('theme').toUpperCase()}
                 </Text>
-                <TouchableOpacity
-                  onPress={handleToggleTheme}
-                  className={`flex-row items-center justify-between p-4 rounded-xl border ${
-                    isDarkMode
-                      ? 'bg-gray-700 border-gray-600'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <View className="flex-row items-center gap-3">
-                    <MaterialCommunityIcons
-                      name={isDarkMode ? 'weather-night' : 'weather-sunny'}
-                      size={wp(5)}
-                      color={isDarkMode ? '#60A5FA' : '#F59E0B'}
-                    />
-                    <Text
-                      className={`font-medium ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}
-                    >
-                      {isDarkMode ? t('darkMode') : t('lightMode')}
-                    </Text>
-                  </View>
-                  <View
-                    className={`w-6 h-6 rounded-full border-2 items-center justify-center ${
-                      isDarkMode ? 'border-blue-500' : 'border-gray-300'
+                <View className="flex-row items-center justify-between">
+                  <Text
+                    className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}
+                    style={{ fontSize: wp(4.5) }}
                   >
-                    {isDarkMode && (
-                      <View className="w-3 h-3 rounded-full bg-blue-500" />
-                    )}
-                  </View>
-                </TouchableOpacity>
+                    {isDarkMode ? t('darkMode') : t('lightMode')}
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={handleToggleTheme}
+                    style={{
+                      width: wp(20),
+                      height: wp(10),
+                      backgroundColor: isDarkMode ? '#374151' : '#BFDBFE',
+                      borderRadius: wp(5),
+                      padding: wp(1),
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {/* Track Icons */}
+                    <View
+                      className="absolute flex-row justify-between items-center"
+                      style={{ width: '100%', paddingHorizontal: wp(2.5) }}
+                    >
+                      <MaterialCommunityIcons
+                        name="weather-sunny"
+                        size={wp(5)}
+                        color="#FCD34D"
+                        style={{ opacity: isDarkMode ? 1 : 0 }}
+                      />
+                      <MaterialCommunityIcons
+                        name="weather-night"
+                        size={wp(5)}
+                        color="#3B82F6"
+                        style={{ opacity: isDarkMode ? 0 : 1 }}
+                      />
+                    </View>
+
+                    {/* Thumb */}
+                    <Animated.View
+                      style={{
+                        width: wp(8),
+                        height: wp(8),
+                        borderRadius: wp(4),
+                        backgroundColor: '#FFFFFF',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 2.5,
+                        elevation: 4,
+                        transform: [{ translateX: thumbTranslateX }],
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={isDarkMode ? 'weather-night' : 'weather-sunny'}
+                        size={wp(5)}
+                        color={isDarkMode ? '#3B82F6' : '#F59E0B'}
+                      />
+                    </Animated.View>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               {/* Language Section */}
