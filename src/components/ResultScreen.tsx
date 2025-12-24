@@ -11,12 +11,9 @@ interface ResultScreenProps {
   onNewGame: () => void;
 }
 
-export const ResultScreen: React.FC<ResultScreenProps> = ({
-  mistakes,
-  hints,
-  timeInSeconds,
-  onNewGame,
-}) => {
+export const ResultScreen: React.FC<
+  ResultScreenProps & { isDarkMode: boolean }
+> = ({ mistakes, hints, timeInSeconds, onNewGame, isDarkMode }) => {
   const { t } = useTranslation();
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -26,44 +23,56 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   return (
     <View
-      className="absolute inset-0 z-50 bg-white/95 items-center justify-center"
-      style={{ padding: wp(6), borderRadius: wp(4), gap: wp(8) }}
+      className={`absolute inset-0 z-50 items-center justify-center border-4 ${
+        isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+      }`}
+      style={{ padding: wp(6), gap: wp(3) }}
     >
       <View className="items-center" style={{ gap: wp(2) }}>
-        <Text style={{ fontSize: wp(10), lineHeight: wp(12) }}>🎉</Text>
+        <Text style={{ fontSize: wp(8), lineHeight: wp(10) }}>🎉</Text>
         <Text
-          className="font-bold text-blue-900"
-          style={{ fontSize: wp(9), lineHeight: wp(11) }}
+          className={`font-bold ${
+            isDarkMode ? 'text-blue-400' : 'text-blue-900'
+          }`}
+          style={{ fontSize: wp(7), lineHeight: wp(9) }}
         >
           {t('solved')}
         </Text>
         <Text
-          className="text-gray-500 font-medium"
+          className={`font-medium ${
+            isDarkMode ? 'text-gray-400' : 'text-gray-500'
+          }`}
           style={{ fontSize: wp(4), lineHeight: wp(6) }}
         >
           {t('greatJob')}
         </Text>
       </View>
       <View
-        className="w-full bg-blue-50 space-y-4"
-        style={{ borderRadius: wp(5), padding: wp(5), gap: wp(4) }}
+        className={`w-full space-y-4 ${
+          isDarkMode ? 'bg-gray-900' : 'bg-blue-50'
+        }`}
+        style={{ borderRadius: wp(3), padding: wp(3), gap: wp(4) }}
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center" style={{ gap: wp(2) }}>
             <MaterialCommunityIcons
               name="clock-outline"
               size={wp(6)}
-              color="#3B82F6"
+              color={isDarkMode ? '#60A5FA' : '#3B82F6'}
             />
             <Text
-              className="text-gray-600 font-medium"
+              className={`font-medium ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}
               style={{ fontSize: wp(4) }}
             >
               {t('time')}
             </Text>
           </View>
           <Text
-            className="font-bold text-blue-900"
+            className={`font-bold ${
+              isDarkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}
             style={{ fontSize: wp(4.5) }}
           >
             {formatTime(timeInSeconds)}
@@ -77,14 +86,18 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               color="#EF4444"
             />
             <Text
-              className="text-gray-600 font-medium"
+              className={`font-medium ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}
               style={{ fontSize: wp(4) }}
             >
               {t('mistakes')}
             </Text>
           </View>
           <Text
-            className="font-bold text-blue-900"
+            className={`font-bold ${
+              isDarkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}
             style={{ fontSize: wp(4.5) }}
           >
             {mistakes}
@@ -98,14 +111,18 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               color="#EAB308"
             />
             <Text
-              className="text-gray-600 ml-2 font-medium"
+              className={`font-medium ${
+                isDarkMode ? 'text-gray-300' : 'text-gray-600'
+              }`}
               style={{ fontSize: wp(4) }}
             >
               {t('hints')}
             </Text>
           </View>
           <Text
-            className="font-bold text-blue-900"
+            className={`font-bold ${
+              isDarkMode ? 'text-blue-400' : 'text-blue-900'
+            }`}
             style={{ fontSize: wp(4.5) }}
           >
             {hints}
@@ -115,7 +132,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       <TouchableOpacity
         onPress={onNewGame}
         className="bg-blue-600 rounded-full shadow-lg active:bg-blue-700 w-full items-center"
-        style={{ paddingHorizontal: wp(10), paddingVertical: wp(4) }}
+        style={{ paddingHorizontal: wp(5), paddingVertical: wp(4) }}
       >
         <Text className="text-white font-bold" style={{ fontSize: wp(4) }}>
           {t('startNewGame')}

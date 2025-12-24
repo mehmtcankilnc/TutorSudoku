@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import { View, Animated } from 'react-native';
 import {
@@ -32,8 +33,8 @@ const AnimatedStepDot = ({
   const backgroundColor = anim.interpolate({
     inputRange: [0, 1],
     outputRange: [
-      isDarkMode ? '#374151' : '#D1D5DB', // gray-700 : gray-300
-      isDarkMode ? '#60A5FA' : '#2563EB', // blue-400 : blue-600
+      isDarkMode ? '#374151' : '#D1D5DB',
+      isDarkMode ? '#60A5FA' : '#2563EB',
     ],
   });
 

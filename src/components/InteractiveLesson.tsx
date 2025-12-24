@@ -13,6 +13,7 @@ import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { Cell } from './Cell';
 import { TutorialScenario } from '../data/TutorialData';
+import { playSound } from '../utils/SoundManager';
 
 interface InteractiveLessonProps {
   lesson: TutorialScenario;
@@ -93,6 +94,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
       >
         <TouchableOpacity
           onPress={onClose}
+          onPressIn={() => playSound('click')}
           style={{ position: 'absolute', left: wp(5) }}
         >
           <MaterialCommunityIcons
@@ -126,7 +128,6 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
           {currentStep.board.map((row, r) => (
             <View key={r} className="flex-row">
               {row.map((val, c) => {
-                // Formatting
                 const borderRight = (c + 1) % 3 === 0 && c !== 8 ? 2 : 0;
                 const borderBottom = (r + 1) % 3 === 0 && r !== 8 ? 2 : 0;
                 const isHighlighted = currentStep.highlightCells?.some(
@@ -136,7 +137,6 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
                   currentStep.focusCell?.r === r &&
                   currentStep.focusCell?.c === c;
 
-                // Candidates
                 const cellCandidates = currentStep.candidates
                   ? currentStep.candidates[r][c]
                   : undefined;
@@ -157,7 +157,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
                       size={cellSize}
                       isDarkMode={isDarkMode}
                       isSelected={isFocused}
-                      isEditable={false} // Tutorials are guided, user doesn't type
+                      isEditable={false}
                     />
                     {isHighlighted && (
                       <View className="absolute inset-0 bg-yellow-400 opacity-30 pointer-events-none" />
@@ -221,6 +221,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
         <View className="flex-row justify-between">
           <TouchableOpacity
             onPress={handlePrev}
+            onPressIn={() => currentStepIndex > 0 && playSound('click')}
             disabled={currentStepIndex === 0}
             className={`rounded-full border ${
               currentStepIndex === 0
@@ -241,6 +242,7 @@ export const InteractiveLesson: React.FC<InteractiveLessonProps> = ({
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleNext}
+            onPressIn={() => playSound('click')}
             className="rounded-full bg-blue-500 shadow-lg shadow-blue-500/30"
             style={{ paddingHorizontal: wp(6), paddingVertical: wp(3) }}
           >

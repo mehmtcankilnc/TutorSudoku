@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { t } from 'i18next';
+import { playSound } from '../utils/SoundManager';
 
 interface GameControlsProps {
   isDarkMode: boolean;
@@ -15,6 +16,7 @@ interface GameControlsProps {
   isHintActive?: boolean;
   isPaused: boolean;
   canUndo?: boolean;
+  canClear?: boolean;
 }
 
 export const GameControls: React.FC<GameControlsProps> = ({
@@ -27,8 +29,11 @@ export const GameControls: React.FC<GameControlsProps> = ({
   isHintActive,
   isPaused,
   canUndo = true,
+  canClear = false,
 }) => {
   const isUndoDisabled = canUndo === false;
+  const isClearDisabled = canClear === false;
+
   return (
     <View
       className="flex-row"
@@ -37,6 +42,7 @@ export const GameControls: React.FC<GameControlsProps> = ({
     >
       <TouchableOpacity
         onPress={onUndoPress}
+        onPressIn={() => playSound('click')}
         disabled={isUndoDisabled}
         className={`items-center justify-center rounded-full ${
           isUndoDisabled ? 'opacity-30' : 'active:opacity-60'
@@ -57,7 +63,13 @@ export const GameControls: React.FC<GameControlsProps> = ({
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onClearPress}
-        className="items-center justify-center rounded-full active:opacity-60"
+        onPressIn={() => {
+          if (!isClearDisabled) playSound('delete');
+        }}
+        disabled={isClearDisabled}
+        className={`items-center justify-center rounded-full ${
+          isClearDisabled ? 'opacity-30' : 'active:opacity-60'
+        }`}
         style={{ padding: wp(3) }}
       >
         <MaterialCommunityIcons
@@ -74,15 +86,8 @@ export const GameControls: React.FC<GameControlsProps> = ({
       </TouchableOpacity>
       <TouchableOpacity
         onPress={onToggleNoteMode}
-        className={`items-center justify-center rounded-full active:opacity-60 relative
-             ${
-               isNoteMode
-                 ? isDarkMode
-                   ? 'bg-blue-900 border border-blue-500'
-                   : 'bg-blue-100 border border-blue-500'
-                 : 'bg-transparent border border-transparent'
-             }
-          `}
+        onPressIn={() => playSound('click')}
+        className={`items-center justify-center rounded-full active:opacity-60 relative bg-transparent border border-transparent`}
         style={{ padding: wp(3) }}
       >
         <MaterialCommunityIcons
@@ -100,17 +105,13 @@ export const GameControls: React.FC<GameControlsProps> = ({
         />
         <View
           pointerEvents="none"
-          className={`absolute -top-1 -right-1 w-5 h-5 rounded-full items-center justify-center
-               ${
-                 isNoteMode
-                   ? isDarkMode
-                     ? 'bg-blue-500'
-                     : 'bg-blue-600'
-                   : 'opacity-0'
-               }
+          className={`absolute -top-1 -right-2 w-6 h-6 rounded-full items-center justify-center
+               ${isDarkMode ? 'bg-blue-500' : 'bg-blue-600'}
            `}
         >
-          <Text className="text-white text-xs font-bold">ON</Text>
+          <Text className="text-white font-bold" style={{ fontSize: 9 }}>
+            {isNoteMode ? 'ON' : 'OFF'}
+          </Text>
         </View>
         <Text
           className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
@@ -120,12 +121,17 @@ export const GameControls: React.FC<GameControlsProps> = ({
         </Text>
       </TouchableOpacity>
       <TouchableOpacity
-        onPress={isHintActive ? undefined : onHintPress}
+        onPress={() => {
+          if (!isHintActive) {
+            onHintPress();
+          }
+        }}
+        onPressIn={() => {
+          if (!isHintActive) playSound('hint');
+        }}
         activeOpacity={isHintActive ? 1 : 0.6}
         className={`items-center justify-center rounded-full ${
-          isHintActive
-            ? 'opacity-50 bg-gray-200 dark:bg-gray-700'
-            : 'active:opacity-60'
+          isHintActive ? 'opacity-50' : 'active:opacity-60'
         }`}
         style={{ padding: wp(3) }}
         disabled={isHintActive}

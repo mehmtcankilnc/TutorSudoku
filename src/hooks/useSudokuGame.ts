@@ -15,6 +15,7 @@ import {
 } from '../utils/SudokuLogic';
 import { useTranslation } from 'react-i18next';
 import { useAlert } from '../context/AlertContext';
+import { playSound } from '../utils/SoundManager';
 
 export interface GameState {
   board: BoardType;
@@ -90,12 +91,10 @@ export const useSudokuGame = (
     'easy' | 'medium' | 'hard'
   >('easy');
 
-  // History for Undo
   const [history, setHistory] = useState<
     { board: BoardType; notes: number[][][] }[]
   >([]);
 
-  // AppState Listener for Auto-Pause
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
       if (nextAppState !== 'active' && !isSolved) {
@@ -108,7 +107,6 @@ export const useSudokuGame = (
     };
   }, [isSolved]);
 
-  // Initialize game from scanned board if available
   useEffect(() => {
     if (scannedBoard) {
       const validBoard = JSON.parse(JSON.stringify(scannedBoard));
@@ -134,7 +132,7 @@ export const useSudokuGame = (
       setIsTimerRunning(true);
       setIsPaused(false);
       setIsNoteMode(false);
-      setCurrentDifficulty('easy'); // Default for scanned
+      setCurrentDifficulty('easy');
     }
   }, [scannedBoard]);
 
@@ -147,15 +145,12 @@ export const useSudokuGame = (
       }),
     );
 
-    // Candidates are numbers with count 9
     const candidates = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => counts[n] === 9);
 
-    // Filter candidates by validity (must have no conflicts)
     return candidates.filter(num => {
       for (let r = 0; r < 9; r++) {
         for (let c = 0; c < 9; c++) {
           if (board[r][c] === num) {
-            // If any instance of the number causes a conflict, it's not "correctly" completed
             if (checkConflict(board, r, c, num)) {
               return false;
             }
@@ -206,7 +201,6 @@ export const useSudokuGame = (
     setBoard(savedState.board);
     let loadedSolution = savedState.solution;
     if (!loadedSolution || loadedSolution.length === 0) {
-      // Legacy save support: regenerate solution from initial board
       const tempBoard = JSON.parse(JSON.stringify(savedState.initialBoard));
       solve(tempBoard);
       loadedSolution = tempBoard;
@@ -229,7 +223,7 @@ export const useSudokuGame = (
     setLastMovedCell(null);
     setCompletedUnits([]);
     setIsSolved(false);
-    setIsPaused(true); // Start paused when resuming
+    setIsPaused(true);
     setIsNoteMode(false);
 
     setGameKey(prev => prev + 1);
@@ -267,7 +261,6 @@ export const useSudokuGame = (
       if (lastState) {
         setBoard(lastState.board);
         setNotes(lastState.notes);
-        // Clear any ephemeral states
         setTutorMessage(null);
         setConflictingCell(null);
         setShakingCell(null);
@@ -284,10 +277,9 @@ export const useSudokuGame = (
       const { row, col } = selectedCell;
       if (initialBoard[row][col] !== null) return;
 
-      // Prevent changing correctly placed numbers
       if (board[row][col] !== null) {
         const currentVal = board[row][col]!;
-        // Temporarily clear cell to check validity of current value
+
         const tempBoard = board.map(r => [...r]);
         tempBoard[row][col] = null;
         if (isValidMove(tempBoard, row, col, currentVal)) {
@@ -317,7 +309,6 @@ export const useSudokuGame = (
       const isCorrect = solution.length > 0 && solution[row][col] === num;
 
       if (!isCorrect) {
-        // If it's wrong, check if we can show a specific reasonable conflict
         const conflict = checkConflict(board, row, col, num);
         if (conflict) {
           setTutorMessage({
@@ -333,6 +324,7 @@ export const useSudokuGame = (
 
         setShakingCell({ row, col });
         setMistakeCount(prev => prev + 1);
+        playSound('wrong');
         setTimeout(() => setShakingCell(null), 500);
         return;
       } else {
@@ -340,7 +332,7 @@ export const useSudokuGame = (
         setConflictingCell(null);
       }
 
-      const conflict = null; // No conflict if correct
+      const conflict = null;
 
       const newBoard = [...board];
       newBoard[row] = [...newBoard[row]];
@@ -360,32 +352,35 @@ export const useSudokuGame = (
         const solved = isGameSolved(newBoard);
 
         if (solved) {
+          playSound('completed');
           setLastMovedCell({ row, col });
-          // Add all rows to completedUnits to trigger success animation for every cell
+
           const allRows = Array.from({ length: 9 }, (_, i) => ({
             type: 'row',
             index: i,
           }));
           setCompletedUnits(allRows);
 
-          // Calculate max animation delay (wave effect)
           const ANIMATION_DURATION = 2500;
 
           setIsTimerRunning(false);
           dispatch(recordWin(currentDifficulty));
 
-          // Wait for animation to finish before showing result screen
           setTimeout(() => {
             setIsSolved(true);
             if (onGameSolved) onGameSolved();
           }, ANIMATION_DURATION);
         } else if (completions.length > 0) {
           setLastMovedCell({ row, col });
+          playSound('correct');
           setCompletedUnits(completions);
           setTimeout(() => setCompletedUnits([]), 1500);
+        } else {
+          playSound('correct');
         }
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [
       selectedCell,
       isSolved,
@@ -406,7 +401,6 @@ export const useSudokuGame = (
     const { row, col } = selectedCell;
     if (initialBoard[row][col] !== null) return;
 
-    // Prevent deleting correctly placed numbers
     if (board[row][col] !== null) {
       const currentVal = board[row][col]!;
       const tempBoard = board.map(r => [...r]);
@@ -454,8 +448,17 @@ export const useSudokuGame = (
     }
   }, [isSolved, isPaused, board, t, showAlert]);
 
-  const togglePause = useCallback(() => setIsPaused(prev => !prev), []);
-  const toggleNoteMode = useCallback(() => setIsNoteMode(prev => !prev), []);
+  const togglePause = useCallback(() => {
+    setIsPaused(prev => !prev);
+  }, []);
+  const toggleNoteMode = useCallback(() => {
+    setIsNoteMode(prev => !prev);
+  }, []);
+
+  const debugWin = useCallback(() => {
+    setIsSolved(true);
+    playSound('completed');
+  }, []);
 
   return {
     board,
@@ -490,8 +493,9 @@ export const useSudokuGame = (
     isDarkMode,
     gamesWon,
     currentDifficulty,
-    setTutorMessage, // Exporting this for dismiss action
+    setTutorMessage,
     loadSavedGame,
     history,
+    debugWin,
   };
 };

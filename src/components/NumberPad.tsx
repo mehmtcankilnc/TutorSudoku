@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import {
@@ -34,7 +35,11 @@ export const NumberPad: React.FC<NumberPadProps> = ({
           return (
             <TouchableOpacity
               key={num}
-              onPress={() => onNumberPress(num)}
+              onPress={() => {
+                if (!isCompleted) {
+                  onNumberPress(num);
+                }
+              }}
               disabled={isCompleted}
               className={`flex-1 items-center justify-center active:scale-95 active:opacity-60 
                 ${

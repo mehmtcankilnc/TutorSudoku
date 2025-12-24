@@ -6,13 +6,8 @@ import {
   TouchableOpacity,
   FlatList,
   ViewToken,
-  NativeSyntheticEvent,
-  NativeScrollEvent,
 } from 'react-native';
-import {
-  widthPercentageToDP as wp,
-  heightPercentageToDP as hp,
-} from 'react-native-responsive-screen';
+import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
 import { setOnboardingComplete, UserState } from '../store/userSlice';
@@ -111,7 +106,6 @@ export const OnboardingScreen: React.FC = () => {
     }
   };
 
-  // Update step when user swipes
   const onViewableItemsChanged = useRef(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -204,7 +198,7 @@ export const OnboardingScreen: React.FC = () => {
         <View
           style={{
             position: 'absolute',
-            bottom: wp(8), // Just a little bit up from bottom
+            bottom: wp(8),
             left: 0,
             right: 0,
             paddingHorizontal: wp(6),

@@ -21,6 +21,7 @@ import {
   heightPercentageToDP as hp,
 } from 'react-native-responsive-screen';
 import { useTranslation } from 'react-i18next';
+import { playSound } from '../utils/SoundManager';
 
 interface ScanScreenProps {}
 
@@ -105,7 +106,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       if (image && image.path) {
         setImageUri(image.path);
         setImageDims({ width: image.width, height: image.height });
-        setVerificationBoard(null); // Reset any previous verification
+        setVerificationBoard(null);
       }
     } catch (error: any) {
       if (error.code !== 'E_PICKER_CANCELLED') {
@@ -206,7 +207,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       });
     }
 
-    if (allNumbers.length < 5) return null; // We need at least a few numbers to form a board
+    if (allNumbers.length < 5) return null;
 
     const cellWidth = imgWidth / 9;
     const cellHeight = imgHeight / 9;
@@ -216,8 +217,6 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       .map(() => Array(9).fill(null));
 
     allNumbers.forEach(n => {
-      // Map coordinates to 0-8 indices
-      // We add a small buffer/clamping to ensure center points near edges don't overflow
       const colIndex = Math.min(
         8,
         Math.max(0, Math.floor(n.centerX / cellWidth)),
@@ -227,8 +226,6 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
         Math.max(0, Math.floor(n.centerY / cellHeight)),
       );
 
-      // If we have multiple numbers in same cell, we might want to prioritize central ones?
-      // For now, simply overwriting is a reasonable heuristic or taking the last detected one.
       grid[rowIndex][colIndex] = n.val;
     });
 
@@ -312,6 +309,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
             />
             <TouchableOpacity
               onPress={() => setImageUri(null)}
+              onPressIn={() => playSound('click')}
               className="absolute top-2 right-2 bg-red-500 rounded-full"
               style={{ padding: wp(2) }}
             >
@@ -322,6 +320,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
           <View className="w-full" style={{ gap: wp(4) }}>
             <TouchableOpacity
               onPress={handleCameraLaunch}
+              onPressIn={() => playSound('click')}
               className={`w-full border-4 border-dashed items-center justify-center 
                               ${
                                 isDarkMode
@@ -347,6 +346,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
 
             <TouchableOpacity
               onPress={handleGalleryLaunch}
+              onPressIn={() => playSound('click')}
               className={`w-full border-4 border-dashed items-center justify-center
                               ${
                                 isDarkMode
@@ -375,6 +375,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
         {imageUri && (
           <TouchableOpacity
             onPress={processImage}
+            onPressIn={() => !isProcessing && playSound('click')}
             disabled={isProcessing}
             className={`w-full flex-row items-center justify-center 
                             ${

@@ -93,12 +93,10 @@ export const CustomAlert: React.FC<CustomAlertProps> = ({
               const isCancel = btn.style === 'cancel';
               const isDestructive = btn.style === 'destructive';
 
-              // Base style logic
               let bgClass = isDarkMode ? 'bg-gray-700' : 'bg-gray-100';
               let textClass = isDarkMode ? 'text-white' : 'text-gray-800';
 
               if (!isCancel && !isDestructive) {
-                // Primary/Default
                 bgClass = 'bg-blue-600';
                 textClass = 'text-white';
               } else if (isDestructive) {

@@ -6,7 +6,6 @@ export interface Conflict {
   conflictingCell: { row: number; col: number };
 }
 
-// ... existing basic helpers ...
 export const checkConflict = (
   board: BoardType,
   row: number,
@@ -91,7 +90,6 @@ export const generateSudoku = (
   solve(board);
   const solution = board.map(row => [...row]);
 
-  // Difficulty adjustments
   const attempts =
     difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 55;
 
@@ -142,16 +140,12 @@ const getCandidatesMap = (board: BoardType): number[][][] => {
   return map;
 };
 
-// --- Advanced Logic Checkers ---
-
 const checkLockedCandidates = (
   board: BoardType,
   candidates: number[][][],
 ): Hint | null => {
-  // Start with Pointing Pairs/Triples (Box -> Row/Col)
   for (let br = 0; br < 3; br++) {
     for (let bc = 0; bc < 3; bc++) {
-      // Check each number 1-9
       for (let num = 1; num <= 9; num++) {
         const positions: { r: number; c: number }[] = [];
         for (let i = 0; i < 3; i++) {
@@ -165,10 +159,8 @@ const checkLockedCandidates = (
         }
 
         if (positions.length > 1 && positions.length <= 3) {
-          // Check if all in same Row
           const firstRow = positions[0].r;
           if (positions.every(p => p.r === firstRow)) {
-            // Check if candidate exists in row OUTSIDE box
             let existsOutside = false;
             for (let c = 0; c < 9; c++) {
               if (
@@ -195,10 +187,8 @@ const checkLockedCandidates = (
             }
           }
 
-          // Check if all in same Col
           const firstCol = positions[0].c;
           if (positions.every(p => p.c === firstCol)) {
-            // Check if candidate exists in col OUTSIDE box
             let existsOutside = false;
             for (let r = 0; r < 9; r++) {
               if (
@@ -235,9 +225,8 @@ const checkNakedPairs = (
   board: BoardType,
   candidates: number[][][],
 ): Hint | null => {
-  // Check Rows
   for (let r = 0; r < 9; r++) {
-    const pairs: { [key: string]: number[] } = {}; // "1,2" -> [colIndex1, colIndex2]
+    const pairs: { [key: string]: number[] } = {};
     for (let c = 0; c < 9; c++) {
       if (board[r][c] === null && candidates[r][c].length === 2) {
         const key = candidates[r][c].join(',');
@@ -247,9 +236,7 @@ const checkNakedPairs = (
     }
     for (const k in pairs) {
       if (pairs[k].length === 2) {
-        // Found a Naked Pair!
         const combo = k.split(',').map(Number);
-        // Check if these numbers exist elsewhere in row
         let effective = false;
         for (let c = 0; c < 9; c++) {
           if (!pairs[k].includes(c) && board[r][c] === null) {
@@ -282,7 +269,6 @@ const checkNakedPairs = (
     }
   }
 
-  // Check Cols
   for (let c = 0; c < 9; c++) {
     const pairs: { [key: string]: number[] } = {};
     for (let r = 0; r < 9; r++) {
@@ -329,7 +315,6 @@ export const getHint = (board: BoardType): Hint | null => {
   let bestHint: Hint | null = null;
   let bestScore = -1;
 
-  // Helper to calculate "density"
   const getPeerDensity = (r: number, c: number) => {
     let filled = 0;
     for (let k = 0; k < 9; k++) if (board[r][k] !== null) filled++;
@@ -341,7 +326,6 @@ export const getHint = (board: BoardType): Hint | null => {
     return filled;
   };
 
-  // Pre-calculate all candidates
   const candidatesMap = getCandidatesMap(board);
 
   // 1. Check Naked Singles (Priority 1)
@@ -415,7 +399,7 @@ export const getHint = (board: BoardType): Hint | null => {
     }
     for (let num = 1; num <= 9; num++) {
       if (counts[num] && counts[num].length === 1) {
-        if (0 > bestScore) {
+        if (bestScore < 0) {
           bestScore = 50;
           bestHint = {
             key: 'hint_hiddenSingleCol',

@@ -1,7 +1,7 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface ProgressState {
-  completedTutorials: string[]; // List of tutorial IDs
+  completedTutorials: string[];
 }
 
 const initialState: ProgressState = {

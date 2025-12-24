@@ -16,6 +16,7 @@ import Animated, {
 import { TUTORIAL_DATA } from '../data/TutorialData';
 import { Technique } from '../types';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
+import { playSound } from '../utils/SoundManager';
 
 interface AccordionItemProps {
   item: Technique;
@@ -66,6 +67,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={onToggle}
+        onPressIn={() => playSound('click')}
         className="flex-row items-center justify-between"
         style={{ padding: wp(3) }}
       >
@@ -161,6 +163,7 @@ export const AccordionItem: React.FC<AccordionItemProps> = ({
                 <TouchableOpacity
                   key={tut.id}
                   onPress={() => onLessonStart(tut)}
+                  onPressIn={() => playSound('click')}
                   className={`flex-row items-center active:opacity-70 ${
                     isDarkMode
                       ? 'bg-blue-900/40'

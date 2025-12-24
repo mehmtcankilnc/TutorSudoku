@@ -19,6 +19,7 @@ import { RootState } from '../store/store';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { SettingsModal } from '../components/SettingsModal';
+import { playSound } from '../utils/SoundManager';
 import { useTranslation } from 'react-i18next';
 
 type PlayScreenRouteProp = RouteProp<
@@ -26,9 +27,7 @@ type PlayScreenRouteProp = RouteProp<
   'Play'
 >;
 
-export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
-  onTriggerUpdate,
-}) => {
+export const PlayScreen: React.FC = () => {
   const { t } = useTranslation();
   const { isDarkMode, gamesWon } = useSelector((state: RootState) => ({
     isDarkMode: state.theme.isDarkMode,
@@ -41,13 +40,20 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
   const [gameStage, setGameStage] = useState<'selecting' | 'playing'>(
     scannedBoard ? 'playing' : 'selecting',
   );
+
+  React.useEffect(() => {
+    if (scannedBoard) {
+      setGameStage('playing');
+      setSavedGame(null);
+      setGameId(prev => prev + 1);
+    }
+  }, [scannedBoard]);
   const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>(
     'easy',
   );
-  // Add a key to force re-mounting board when starting new game
+
   const [gameId, setGameId] = useState(0);
 
-  // Handle Double Back Press to Exit
   const [lastBackPress, setLastBackPress] = useState(0);
 
   useFocusEffect(
@@ -56,13 +62,13 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
         if (gameStage === 'playing') {
           const now = Date.now();
           if (lastBackPress && now - lastBackPress < 2000) {
-            return false; // Exit app
+            return false;
           }
           setLastBackPress(now);
           ToastAndroid.show(t('pressBackAgainToExit'), ToastAndroid.SHORT);
-          return true; // Prevent default behavior
+          return true;
         }
-        return false; // Default behavior
+        return false;
       };
 
       const subscription = BackHandler.addEventListener(
@@ -79,7 +85,7 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
   const handleLevelSelect = (level: 'easy' | 'medium' | 'hard') => {
     setDifficulty(level);
     setLoadingLevel(level);
-    setSavedGame(null); // Ensure we don't load a saved game when selecting new level
+    setSavedGame(null);
     setGameId(prev => prev + 1);
   };
 
@@ -113,15 +119,13 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
 
   const handleResumeGame = () => {
     if (savedGame) {
-      // For resume, we can switch immediately as it is fast, but consistent UI is good
       setLoadingLevel('resume');
       setGameId(prev => prev + 1);
     }
   };
 
-  // Level Selection Logic
-  const MEDIUM_UNLOCK_REQ = 3; // Wins on Easy needed
-  const HARD_UNLOCK_REQ = 5; // Wins on Medium needed
+  const MEDIUM_UNLOCK_REQ = 3;
+  const HARD_UNLOCK_REQ = 5;
 
   const isMediumLocked = gamesWon.easy < MEDIUM_UNLOCK_REQ;
   const isHardLocked = gamesWon.medium < HARD_UNLOCK_REQ;
@@ -139,6 +143,9 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
   ) => (
     <TouchableOpacity
       onPress={() => !locked && !isDisabled && handleLevelSelect(level)}
+      onPressIn={() => {
+        if (!locked && !isDisabled) playSound('click');
+      }}
       activeOpacity={locked || isDisabled ? 1 : 0.7}
       className={`w-full border-2 flex-row items-center justify-between ${
         locked
@@ -149,7 +156,11 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
           ? 'bg-gray-800 border-gray-700'
           : 'bg-white border-blue-100 shadow-sm'
       }`}
-      style={{ padding: wp(5), borderRadius: wp(5) }}
+      style={{
+        paddingVertical: wp(5),
+        paddingHorizontal: wp(2),
+        borderRadius: wp(5),
+      }}
     >
       <View className="flex-row items-center flex-1">
         <View
@@ -240,7 +251,10 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
             </Text>
           </View>
           <TouchableOpacity
-            onPress={() => setIsSettingsVisible(true)}
+            onPress={() => {
+              setIsSettingsVisible(true);
+            }}
+            onPressIn={() => playSound('click')}
             className={`rounded-full ${
               isDarkMode ? 'bg-gray-800' : 'bg-white'
             }`}
@@ -256,12 +270,6 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
         <SettingsModal
           visible={isSettingsVisible}
           onClose={() => setIsSettingsVisible(false)}
-          onTestUpdate={() => {
-            setIsSettingsVisible(false);
-            if (onTriggerUpdate) {
-              onTriggerUpdate();
-            }
-          }}
         />
         <View className="flex-1 items-center justify-center w-full">
           {gameStage === 'selecting' ? (
@@ -272,6 +280,9 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
               {savedGame && (
                 <TouchableOpacity
                   onPress={() => !loadingLevel && handleResumeGame()}
+                  onPressIn={() => {
+                    if (!loadingLevel) playSound('click');
+                  }}
                   activeOpacity={loadingLevel ? 1 : 0.7}
                   className={`w-full border-2 flex-row items-center justify-between ${
                     isDarkMode
@@ -414,7 +425,7 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
                 t('easy'),
                 t('easyDesc'),
                 'feather',
-                '#10B981', // green-500
+                '#10B981',
                 false,
                 loadingLevel === 'easy',
                 loadingLevel !== null,
@@ -425,10 +436,10 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
                 t('medium'),
                 t('mediumDesc'),
                 'shield-outline',
-                '#F59E0B', // amber-500
+                '#F59E0B',
                 isMediumLocked,
                 loadingLevel === 'medium',
-                loadingLevel !== null, // Disabled if any level is loading
+                loadingLevel !== null,
                 `${t('mediumLock')} ${MEDIUM_UNLOCK_REQ - gamesWon.easy}`,
               )}
 
@@ -437,10 +448,10 @@ export const PlayScreen: React.FC<{ onTriggerUpdate?: () => void }> = ({
                 t('hard'),
                 t('hardDesc'),
                 'fire',
-                '#EF4444', // red-500
+                '#EF4444',
                 isHardLocked,
                 loadingLevel === 'hard',
-                loadingLevel !== null, // Disabled if any level is loading
+                loadingLevel !== null,
                 `${t('hardLock')} ${HARD_UNLOCK_REQ - gamesWon.medium}`,
               )}
 

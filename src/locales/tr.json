@@ -15,7 +15,7 @@
   "mediumDesc": "Biraz daha kafa yormak lazım",
   "hard": "Zor",
   "hardDesc": "Gerçek sudoku ustaları için",
-  "medumLock": "Kilidi açmak için gereken kolay kazanma sayısı:",
+  "mediumLock": "Kilidi açmak için gereken kolay kazanma sayısı:",
   "hardLock": "Kilidi açmak için gereken orta kazanma sayısı:",
   "wins": "Toplam Kazanma:",
   "welcomeTitle": "TutorSudoku'ya\nHoşgeldiniz",
@@ -173,5 +173,8 @@
   "undo": "Geri",
   "clear": "Temizle",
   "notes": "Notlar",
-  "hint": "İpucu"
+  "hint": "İpucu",
+  "soundOn": "Açık",
+  "soundOff": "Kapalı",
+  "soundEffects": "SES EFEKTLERİ"
 }

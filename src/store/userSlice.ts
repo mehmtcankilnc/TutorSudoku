@@ -1,10 +1,9 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// Define the User State
 export interface UserState {
   isOnboarded: boolean;
   skillLevel: 'beginner' | 'intermediate' | 'expert' | 'master' | null;
-  playFrequency: string | null; // e.g., "1-2 days/week"
+  playFrequency: string | null;
   gamesWon: {
     easy: number;
     medium: number;
@@ -12,7 +11,6 @@ export interface UserState {
   };
 }
 
-// Initial State
 const initialState: UserState = {
   isOnboarded: false,
   skillLevel: null,
@@ -24,7 +22,6 @@ const initialState: UserState = {
   },
 };
 
-// Create Slice
 const userSlice = createSlice({
   name: 'user',
   initialState,
@@ -44,7 +41,6 @@ const userSlice = createSlice({
       state.isOnboarded = action.payload.isOnboarded;
       state.skillLevel = action.payload.skillLevel;
       state.playFrequency = action.payload.playFrequency;
-      // Ensure gamesWon exists if hydrating from older state version
       if (!state.gamesWon) {
         state.gamesWon = { easy: 0, medium: 0, hard: 0 };
       }

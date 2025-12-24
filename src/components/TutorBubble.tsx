@@ -20,7 +20,6 @@ export const TutorBubble: React.FC<TutorBubbleProps> = ({
 }) => {
   const { t } = useTranslation();
   const containerClass = position === 'above' ? 'bottom-12' : 'top-12';
-  // Use inline styles for positioning to guarantee behavior over tailwind classes if conflicts arise
   const positionStyle = align === 'left' ? { left: 0 } : { right: 0 };
 
   const bgColor = isDarkMode ? 'bg-gray-800' : 'bg-white';

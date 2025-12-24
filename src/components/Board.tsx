@@ -13,14 +13,16 @@ import { GameTimer } from './GameTimer';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSudokuGame } from '../hooks/useSudokuGame';
 import { SudokuGrid } from './SudokuGrid';
+
 import { GameControls } from './GameControls';
+import { playSound } from '../utils/SoundManager';
 
 interface BoardProps {
   scannedBoard?: (number | null)[][];
   isSettingsOpen?: boolean;
   initialDifficulty?: 'easy' | 'medium' | 'hard';
   onExit: () => void;
-  savedGameState?: any; // Using any for GameState temporarily to avoid import loops or complex refactoring
+  savedGameState?: any;
   justResumed?: boolean;
   onReady?: () => void;
   containerStyle?: View['props']['style'];
@@ -40,30 +42,24 @@ export const Board: React.FC<BoardProps> = ({
 
   const game = useSudokuGame(scannedBoard, () => {});
 
-  // Use a ref to access the latest game state in the AppState listener without re-subscribing
   const gameRef = React.useRef(game);
   useEffect(() => {
     gameRef.current = game;
   });
 
-  // Track if we are exiting manually via the exit button
   const isManualExit = React.useRef(false);
 
-  // Check for board readiness
   useEffect(() => {
     if (game.board.length > 0 && onReady) {
       onReady();
     }
   }, [game.board, onReady]);
 
-  // Initialize game with proper difficulty if not scanned
   useEffect(() => {
-    // Only initialize if the board is empty to prevent overwrites or loops
     if (game.board.length === 0) {
       if (savedGameState) {
         game.loadSavedGame(savedGameState);
         if (justResumed) {
-          // If we just resumed from the menu, we want to play immediately
           game.setIsPaused(false);
         }
       } else if (!scannedBoard) {
@@ -73,11 +69,9 @@ export const Board: React.FC<BoardProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scannedBoard, savedGameState]);
 
-  // Save game state on unmount or background
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState !== 'active') {
-        // Force pause immediately via ref to avoid state closure issues
         gameRef.current.setIsPaused(true);
         saveGame();
       }
@@ -120,12 +114,11 @@ export const Board: React.FC<BoardProps> = ({
       saveGame();
       subscription.remove();
     };
-  }, []); // Run ONCE on mount
+  }, []);
 
-  // Intercept onExit to set the manual flag
   const handleExit = () => {
     isManualExit.current = true;
-    // Also clear any saved game since we are abandoning it
+
     const AsyncStorage =
       require('@react-native-async-storage/async-storage').default;
     AsyncStorage.removeItem('saved_game').catch((e: any) =>
@@ -134,20 +127,20 @@ export const Board: React.FC<BoardProps> = ({
     onExit();
   };
 
-  // Save game state on unmount ONLY if not manual exit and not solved
   useEffect(() => {
     return () => {
       if (!isManualExit.current && !game.isSolved && game.board.length > 0) {
         const saveGame = async () => {
+          const currentGame = gameRef.current;
           const gameState = {
-            board: game.board,
-            initialBoard: game.initialBoard,
-            notes: game.notes,
-            mistakeCount: game.mistakeCount,
-            hintCount: game.hintCount,
-            timer: game.timerRef.current,
-            difficulty: game.currentDifficulty,
-            solution: game.solution,
+            board: currentGame.board,
+            initialBoard: currentGame.initialBoard,
+            notes: currentGame.notes,
+            mistakeCount: currentGame.mistakeCount,
+            hintCount: currentGame.hintCount,
+            timer: currentGame.timerRef.current,
+            difficulty: currentGame.currentDifficulty,
+            solution: currentGame.solution,
             history: [],
           };
           try {
@@ -161,6 +154,7 @@ export const Board: React.FC<BoardProps> = ({
         saveGame();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     game.board,
     game.initialBoard,
@@ -177,14 +171,6 @@ export const Board: React.FC<BoardProps> = ({
 
   return (
     <View className="items-center w-full relative z-0">
-      {game.isSolved && (
-        <ResultScreen
-          mistakes={game.mistakeCount}
-          hints={game.hintCount}
-          timeInSeconds={game.timerRef.current}
-          onNewGame={handleExit}
-        />
-      )}
       <View
         className="flex-row justify-between w-full items-center"
         style={{ paddingHorizontal: wp(4), marginBottom: hp(1) }}
@@ -234,6 +220,7 @@ export const Board: React.FC<BoardProps> = ({
         </View>
         <TouchableOpacity
           onPress={game.togglePause}
+          onPressIn={() => playSound('click')}
           className={`${game.isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}
           style={{ padding: wp(2), borderRadius: 9999 }}
         >
@@ -245,6 +232,15 @@ export const Board: React.FC<BoardProps> = ({
         </TouchableOpacity>
       </View>
       <View className="relative">
+        {game.isSolved && (
+          <ResultScreen
+            mistakes={game.mistakeCount}
+            hints={game.hintCount}
+            timeInSeconds={game.timerRef.current}
+            onNewGame={handleExit}
+            isDarkMode={game.isDarkMode}
+          />
+        )}
         {game.isPaused && (
           <View
             className={`absolute inset-0 z-50 items-center justify-center border-4 ${
@@ -263,7 +259,10 @@ export const Board: React.FC<BoardProps> = ({
               {t('paused')}
             </Text>
             <TouchableOpacity
-              onPress={() => game.setIsPaused(false)}
+              onPress={() => {
+                game.setIsPaused(false);
+              }}
+              onPressIn={() => playSound('click')}
               className="bg-blue-500"
               style={{
                 paddingHorizontal: wp(7),
@@ -280,6 +279,7 @@ export const Board: React.FC<BoardProps> = ({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleExit}
+              onPressIn={() => playSound('click')}
               className="bg-red-500"
               style={{
                 paddingHorizontal: wp(7),
@@ -328,9 +328,18 @@ export const Board: React.FC<BoardProps> = ({
         onHintPress={game.handleHintPress}
         onClearPress={game.handleClearPress}
         onUndoPress={game.handleUndo}
-        isHintActive={game.tutorMessage !== null}
         isPaused={game.isPaused}
         canUndo={game.history.length > 0}
+        canClear={
+          !!game.selectedCell &&
+          game.initialBoard[game.selectedCell.row][game.selectedCell.col] ===
+            null &&
+          (game.board[game.selectedCell.row][game.selectedCell.col] !== null ||
+            (game.notes[game.selectedCell.row] &&
+              game.notes[game.selectedCell.row][game.selectedCell.col] &&
+              game.notes[game.selectedCell.row][game.selectedCell.col].length >
+                0))
+        }
       />
     </View>
   );

@@ -3,7 +3,7 @@ import { getPossibleValues } from '../utils/SudokuLogic';
 export interface TutorialStep {
   message: string;
   board: (number | null)[][];
-  candidates?: number[][][]; // 9x9 grid of number arrays
+  candidates?: number[][][];
   highlightCells?: { r: number; c: number }[];
   focusCell?: { r: number; c: number };
   action?: { type: 'fill' | 'eliminate'; value: number };
@@ -15,8 +15,6 @@ export interface TutorialScenario {
   steps: TutorialStep[];
 }
 
-// --- Helpers ---
-
 const parseBoard = (str: string): (number | null)[][] => {
   const board: (number | null)[][] = [];
   const rows = str
@@ -25,7 +23,6 @@ const parseBoard = (str: string): (number | null)[][] => {
     .map(s => s.trim())
     .filter(s => s.length > 0);
 
-  // If input is just one long string 81 chars
   if (rows.length === 1 && str.replace(/\s/g, '').length === 81) {
     const cleanStr = str.replace(/\s/g, '');
     for (let r = 0; r < 9; r++) {
@@ -37,7 +34,6 @@ const parseBoard = (str: string): (number | null)[][] => {
       board.push(row);
     }
   } else {
-    // Input is 9 rows
     rows.forEach(rowStr => {
       const row: (number | null)[] = [];
       for (let char of rowStr) {
@@ -69,8 +65,6 @@ const overrideCandidates = (
   });
   return newCands;
 };
-
-// --- Scenarios ---
 
 // 1. Naked Single
 const s1_board = parseBoard(

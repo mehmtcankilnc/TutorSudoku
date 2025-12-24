@@ -173,5 +173,8 @@
   "undo": "Undo",
   "clear": "Clear",
   "notes": "Notes",
-  "hint": "Hint"
+  "hint": "Hint",
+  "soundOn": "On",
+  "soundOff": "Off",
+  "soundEffects": "Sound Effects"
 }

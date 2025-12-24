@@ -24,12 +24,7 @@ import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
 import { hydrateUser, setGamesWon } from './src/store/userSlice';
-import {
-  ActivityIndicator,
-  View,
-  useColorScheme,
-  Platform,
-} from 'react-native';
+import { View, useColorScheme } from 'react-native';
 import { setDarkMode } from './src/store/themeSlice';
 import { setCompletedTutorials } from './src/store/progressSlice';
 import {
@@ -41,10 +36,15 @@ import LottieView from 'lottie-react-native';
 
 import { UpdateModal } from './src/components/UpdateModal';
 
-// Constants
-const CURRENT_VERSION = '1.2.1';
+const CURRENT_VERSION = '1.2.2';
 const VERSION_URL =
   'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
+import {
+  loadSounds,
+  playSound,
+  setSoundEnabled,
+} from './src/utils/SoundManager';
+import { setSoundEnabled as setStoreSoundEnabled } from './src/store/themeSlice';
 
 const compareVersions = (v1: string, v2: string) => {
   const parts1 = v1.split('.').map(Number);
@@ -64,36 +64,35 @@ const MainApp = () => {
   const { t, i18n } = useTranslation();
   const dispatch = useDispatch();
   const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
+  const isSoundEnabled = useSelector(
+    (state: RootState) => state.theme.isSoundEnabled,
+  );
   const isOnboarded = useSelector((state: RootState) => state.user.isOnboarded);
   const systemScheme = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(true);
+  const isStoreLoaded = React.useRef(false);
 
   const [isSplashFinished, setIsSplashFinished] = React.useState(false);
 
-  // Update Check State
   const [isUpdateRequired, setIsUpdateRequired] = React.useState(false);
   const [storeUrl, setStoreUrl] = React.useState('');
 
   React.useEffect(() => {
+    loadSounds();
     const checkVersion = async () => {
       try {
         const response = await fetch(VERSION_URL);
         if (response.ok) {
           const data = await response.json();
-          // Assuming JSON format: { "version": "1.0.0", "storeUrl": "..." }
-          // Or platform specific: { "android": "...", "ios": "...", "storeUrl": "..." }
-          const latestVersion =
-            data.version || (Platform.OS === 'ios' ? data.ios : data.android);
+
+          const latestVersion = data.version;
           const url = data.storeUrl;
 
           if (
             latestVersion &&
             compareVersions(latestVersion, CURRENT_VERSION) > 0
           ) {
-            setStoreUrl(
-              url ||
-                'https://play.google.com/store/apps/details?id=com.tutorsudoku',
-            );
+            setStoreUrl(url);
             setIsUpdateRequired(true);
           }
         }
@@ -113,6 +112,13 @@ const MainApp = () => {
           dispatch(setDarkMode(isDark));
         } else {
           dispatch(setDarkMode(systemScheme === 'dark'));
+        }
+
+        const soundData = await AsyncStorage.getItem('user_sound');
+        if (soundData !== null) {
+          const isSound = JSON.parse(soundData);
+          dispatch(setStoreSoundEnabled(isSound));
+          setSoundEnabled(isSound);
         }
 
         const userData = await AsyncStorage.getItem('user_onboarding');
@@ -140,14 +146,22 @@ const MainApp = () => {
       } catch (e) {
         console.error(e);
       } finally {
+        isStoreLoaded.current = true;
         setIsLoading(false);
       }
     };
     checkUser();
-  }, [dispatch]);
+  }, [dispatch, systemScheme, i18n]);
+
+  React.useEffect(() => {
+    setSoundEnabled(isSoundEnabled);
+  }, [isSoundEnabled]);
 
   React.useEffect(() => {
     const saveWins = async () => {
+      if (!isStoreLoaded.current) {
+        return;
+      }
       try {
         const gamesWon = store.getState().user.gamesWon;
         await AsyncStorage.setItem('user_wins', JSON.stringify(gamesWon));
@@ -155,14 +169,13 @@ const MainApp = () => {
         console.error('Failed to save wins', e);
       }
     };
-    // Subscribe to store changes for gamesWon specifically
+
     const unsubscribe = store.subscribe(() => {
       saveWins();
     });
     return () => unsubscribe();
   }, []);
 
-  // Custom Navigation Themes
   const MyLightTheme = {
     ...DefaultTheme,
     colors: {
@@ -257,7 +270,7 @@ const MainApp = () => {
               },
               tabBarLabelStyle: {
                 fontSize: r.isTablet ? wp(2.5) : wp(3.5),
-                lineHeight: r.isTablet ? wp(3) : wp(5),
+                lineHeight: r.isTablet ? wp(3) : wp(4),
                 fontWeight: '600',
               },
               tabBarActiveTintColor: '#3B82F6',
@@ -266,6 +279,10 @@ const MainApp = () => {
           >
             <Tab.Screen
               name="Play"
+              component={PlayScreen}
+              listeners={{
+                tabPress: () => playSound('click'),
+              }}
               options={{
                 tabBarLabel: t('navPlay'),
                 tabBarIcon: ({ color }) => (
@@ -276,22 +293,13 @@ const MainApp = () => {
                   />
                 ),
               }}
-            >
-              {props => (
-                <PlayScreen
-                  {...props}
-                  onTriggerUpdate={() => {
-                    setStoreUrl(
-                      'https://play.google.com/store/apps/details?id=com.tutorsudoku',
-                    );
-                    setIsUpdateRequired(true);
-                  }}
-                />
-              )}
-            </Tab.Screen>
+            />
             <Tab.Screen
               name="Scan"
               component={ScanScreen}
+              listeners={{
+                tabPress: () => playSound('click'),
+              }}
               options={{
                 tabBarLabel: t('navScan'),
                 tabBarIcon: ({ color }) => (
@@ -306,6 +314,9 @@ const MainApp = () => {
             <Tab.Screen
               name="Learn"
               component={TutorialsScreen}
+              listeners={{
+                tabPress: () => playSound('click'),
+              }}
               options={{
                 tabBarLabel: t('navLearn'),
                 tabBarIcon: ({ color }) => (

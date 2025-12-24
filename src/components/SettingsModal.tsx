@@ -1,3 +1,4 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
 import {
   View,
@@ -11,10 +12,10 @@ import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
-import { setDarkMode } from '../store/themeSlice';
-import { resetOnboarding } from '../store/userSlice';
+import { setDarkMode, toggleSound } from '../store/themeSlice';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { playSound } from '../utils/SoundManager';
 
 interface SettingsModalProps {
   visible: boolean;
@@ -25,14 +26,19 @@ interface SettingsModalProps {
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   visible,
   onClose,
-  onTestUpdate,
 }) => {
   const dispatch = useDispatch();
-  const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
+  const { isDarkMode, isSoundEnabled } = useSelector(
+    (state: RootState) => state.theme,
+  );
   const { t, i18n } = useTranslation();
 
   const switchAnim = React.useRef(
     new Animated.Value(isDarkMode ? 1 : 0),
+  ).current;
+
+  const soundSwitchAnim = React.useRef(
+    new Animated.Value(isSoundEnabled ? 1 : 0),
   ).current;
 
   React.useEffect(() => {
@@ -43,17 +49,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }).start();
   }, [isDarkMode, switchAnim]);
 
+  React.useEffect(() => {
+    Animated.timing(soundSwitchAnim, {
+      toValue: isSoundEnabled ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isSoundEnabled, soundSwitchAnim]);
+
   const thumbTranslateX = switchAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, wp(10)],
   });
 
-  /* duplicate removed */
+  const soundThumbTranslateX = soundSwitchAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, wp(10)],
+  });
 
   const handleToggleTheme = async () => {
     const newMode = !isDarkMode;
     dispatch(setDarkMode(newMode));
     await AsyncStorage.setItem('user_theme', JSON.stringify(newMode));
+  };
+
+  const handleToggleSound = async () => {
+    const newSoundState = !isSoundEnabled;
+    dispatch(toggleSound());
+    if (newSoundState) {
+      playSound('click');
+    }
+    await AsyncStorage.setItem('user_sound', JSON.stringify(newSoundState));
   };
 
   const changeLanguage = async (lang: string) => {
@@ -89,7 +115,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   {t('settings')}
                 </Text>
-                <TouchableOpacity onPress={onClose}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  onPressIn={() => playSound('click')}
+                >
                   <MaterialCommunityIcons
                     name="close"
                     size={wp(6)}
@@ -120,6 +149,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <TouchableOpacity
                     activeOpacity={0.9}
                     onPress={handleToggleTheme}
+                    onPressIn={() => playSound('click')}
                     style={{
                       width: wp(20),
                       height: wp(10),
@@ -175,6 +205,83 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </View>
               </View>
 
+              {/* Sound Section */}
+              <View>
+                <Text
+                  className={`text-sm font-bold mb-3 ${
+                    isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`}
+                >
+                  {t('soundEffects').toUpperCase()}
+                </Text>
+                <View className="flex-row items-center justify-between">
+                  <Text
+                    className={`font-medium ${
+                      isDarkMode ? 'text-white' : 'text-gray-900'
+                    }`}
+                    style={{ fontSize: wp(4.5) }}
+                  >
+                    {isSoundEnabled ? t('soundOn') : t('soundOff')}
+                  </Text>
+
+                  <TouchableOpacity
+                    activeOpacity={0.9}
+                    onPress={handleToggleSound}
+                    style={{
+                      width: wp(20),
+                      height: wp(10),
+                      backgroundColor: isDarkMode ? '#374151' : '#BFDBFE',
+                      borderRadius: wp(5),
+                      padding: wp(1),
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {/* Track Icons */}
+                    <View
+                      className="absolute flex-row justify-between items-center"
+                      style={{ width: '100%', paddingHorizontal: wp(2.5) }}
+                    >
+                      <MaterialCommunityIcons
+                        name="volume-off"
+                        size={wp(5)}
+                        color={isDarkMode ? '#9CA3AF' : '#6B7280'}
+                        style={{ opacity: isSoundEnabled ? 1 : 0 }}
+                      />
+                      <MaterialCommunityIcons
+                        name="volume-high"
+                        size={wp(5)}
+                        color="#3B82F6"
+                        style={{ opacity: isSoundEnabled ? 0 : 1 }}
+                      />
+                    </View>
+
+                    {/* Thumb */}
+                    <Animated.View
+                      style={{
+                        width: wp(8),
+                        height: wp(8),
+                        borderRadius: wp(4),
+                        backgroundColor: '#FFFFFF',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        shadowColor: '#000',
+                        shadowOffset: { width: 0, height: 2 },
+                        shadowOpacity: 0.2,
+                        shadowRadius: 2.5,
+                        elevation: 4,
+                        transform: [{ translateX: soundThumbTranslateX }],
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name={isSoundEnabled ? 'volume-high' : 'volume-off'}
+                        size={wp(5)}
+                        color={isSoundEnabled ? '#3B82F6' : '#9CA3AF'}
+                      />
+                    </Animated.View>
+                  </TouchableOpacity>
+                </View>
+              </View>
+
               {/* Language Section */}
               <View>
                 <Text
@@ -192,6 +299,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <TouchableOpacity
                       key={lang.code}
                       onPress={() => changeLanguage(lang.code)}
+                      onPressIn={() => playSound('click')}
                       className={`flex-row items-center justify-between p-4 rounded-xl border ${
                         i18n.language === lang.code
                           ? isDarkMode

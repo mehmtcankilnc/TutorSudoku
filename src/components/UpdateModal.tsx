@@ -1,12 +1,6 @@
+/* eslint-disable react-native/no-inline-styles */
 import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  Linking,
-  Platform,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Linking } from 'react-native';
 import { widthPercentageToDP as wp } from 'react-native-responsive-screen';
 import { useTranslation } from 'react-i18next';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';

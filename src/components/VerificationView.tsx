@@ -90,7 +90,7 @@ export const VerificationView: React.FC<VerificationViewProps> = ({
               ? 'border-gray-700 bg-gray-800'
               : 'border-gray-800 bg-white'
           }`}
-          style={{ width: cellSize * 9 + 8 }} // +8 for borders (approx 4px each side)
+          style={{ width: cellSize * 9 + 8 }}
         >
           {board.map((row, rowIndex) => (
             <View key={rowIndex} className="flex-row">
@@ -99,7 +99,6 @@ export const VerificationView: React.FC<VerificationViewProps> = ({
                   selectedCell?.row === rowIndex &&
                   selectedCell?.col === colIndex;
 
-                // Borders for 3x3 grids (thicker borders)
                 const borderRight =
                   (colIndex + 1) % 3 === 0 && colIndex !== 8
                     ? `border-r-2 ${

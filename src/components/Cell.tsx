@@ -45,7 +45,6 @@ export const Cell = React.memo<CellProps>(
     const scaleAnim = useRef(new Animated.Value(1)).current;
     const successAnim = useRef(new Animated.Value(0)).current;
 
-    // Shake Animation (Wrong Move)
     useEffect(() => {
       if (shouldShake) {
         shakeAnim.setValue(0);
@@ -79,10 +78,8 @@ export const Cell = React.memo<CellProps>(
       }
     }, [shouldShake]);
 
-    // Success Wave/Shining Animation
     useEffect(() => {
       if (isSuccess) {
-        // Shine/Pulse loop
         Animated.sequence([
           Animated.delay(successDelay),
           Animated.parallel([
@@ -92,7 +89,7 @@ export const Cell = React.memo<CellProps>(
               useNativeDriver: true,
             }),
             Animated.timing(successAnim, {
-              toValue: 0.6, // Semi-transparent overlay for "shine"
+              toValue: 0.6,
               duration: 200,
               useNativeDriver: true,
             }),
@@ -104,7 +101,7 @@ export const Cell = React.memo<CellProps>(
               useNativeDriver: true,
             }),
             Animated.timing(successAnim, {
-              toValue: 0, // Fade out completely
+              toValue: 0,
               duration: 300,
               useNativeDriver: true,
             }),
@@ -115,6 +112,15 @@ export const Cell = React.memo<CellProps>(
         scaleAnim.setValue(1);
       }
     }, [isSuccess, successDelay]);
+
+    const getBackgroundColor = () => {
+      if (isSelected) return isDarkMode ? '#1e3a8a' : '#bfdbfe';
+      if (isConflictSource) return isDarkMode ? '#7f1d1d' : '#fecaca';
+      if (isSameValue) return isDarkMode ? '#312e81' : '#c7d2fe';
+      if (isRelated) return isDarkMode ? '#172554' : '#dbeafe';
+      if (isEditable) return isDarkMode ? '#111827' : '#ffffff';
+      return isDarkMode ? '#1f2937' : '#f3f4f6';
+    };
 
     return (
       <TouchableOpacity
@@ -128,6 +134,7 @@ export const Cell = React.memo<CellProps>(
             width: size,
             height: size,
             transform: [{ translateX: shakeAnim }, { scale: scaleAnim }],
+            backgroundColor: getBackgroundColor(),
           }}
           className={`items-center justify-center overflow-hidden relative
             ${showRightBorder ? 'border-r' : ''} ${
@@ -135,29 +142,11 @@ export const Cell = React.memo<CellProps>(
           }
             ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}
             ${
-              isSelected
+              isConflictSource
                 ? isDarkMode
-                  ? 'bg-blue-900'
-                  : 'bg-blue-200'
-                : isConflictSource
-                ? isDarkMode
-                  ? 'bg-red-900 border-red-700'
-                  : 'bg-red-200 border-red-500'
-                : isSameValue
-                ? isDarkMode
-                  ? 'bg-indigo-900'
-                  : 'bg-indigo-200'
-                : isRelated
-                ? isDarkMode
-                  ? 'bg-blue-900/40'
-                  : 'bg-blue-100'
-                : isEditable
-                ? isDarkMode
-                  ? 'bg-gray-900'
-                  : 'bg-white'
-                : isDarkMode
-                ? 'bg-gray-800'
-                : 'bg-gray-100'
+                  ? 'border-red-700'
+                  : 'border-red-500'
+                : ''
             }`}
         >
           {/* Success Overlay */}
