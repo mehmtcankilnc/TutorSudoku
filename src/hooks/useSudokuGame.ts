@@ -430,7 +430,7 @@ export const useSudokuGame = (
     if (isSolved || isPaused) return;
 
     setHintCount(prev => prev + 1);
-    const hint = getHint(board);
+    const hint = getHint(board, notes);
     if (hint) {
       if (hint.cell) {
         setHighlightedCell(hint.cell);

@@ -6,7 +6,9 @@ import { View, Text, TouchableOpacity, Animated } from 'react-native';
 interface CellProps {
   value: number | null;
   candidates?: number[];
-  onPress?: () => void;
+  row: number;
+  col: number;
+  onPress?: (row: number, col: number) => void;
   isSelected?: boolean;
   isRelated?: boolean;
   isSameValue?: boolean;
@@ -26,6 +28,8 @@ export const Cell = React.memo<CellProps>(
   ({
     value,
     candidates,
+    row,
+    col,
     onPress,
     isSelected,
     isRelated,
@@ -124,7 +128,7 @@ export const Cell = React.memo<CellProps>(
 
     return (
       <TouchableOpacity
-        onPress={onPress}
+        onPress={() => onPress && onPress(row, col)}
         disabled={!isEditable && !onPress}
         activeOpacity={0.7}
         style={{ width: size, height: size }}

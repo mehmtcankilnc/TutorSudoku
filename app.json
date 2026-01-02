@@ -1,5 +1,8 @@
 {
   "name": "TutorSudoku",
   "displayName": "TutorSudoku",
-  "icon": "./src/assets/app_icon.png"
+  "icon": "./src/assets/app_icon.png",
+  "react-native-google-mobile-ads": {
+    "android_app_id": "ca-app-pub-8844937968714659~3275483646"
+  }
 }

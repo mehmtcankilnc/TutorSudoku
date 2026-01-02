@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,8 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import ImagePicker from 'react-native-image-crop-picker';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import ImagePickerCropper from 'react-native-image-crop-picker';
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSelector } from 'react-redux';
@@ -22,8 +23,21 @@ import {
 } from 'react-native-responsive-screen';
 import { useTranslation } from 'react-i18next';
 import { playSound } from '../utils/SoundManager';
+import {
+  RewardedAd,
+  RewardedAdEventType,
+  AdEventType,
+  TestIds,
+} from 'react-native-google-mobile-ads';
+import { REWARDED_AD_ID } from '@env';
 
 interface ScanScreenProps {}
+
+const adUnitId = __DEV__ ? TestIds.REWARDED : REWARDED_AD_ID;
+
+const rewarded = RewardedAd.createForAdRequest(adUnitId, {
+  requestNonPersonalizedAdsOnly: true,
+});
 
 export const ScanScreen: React.FC<ScanScreenProps> = () => {
   const { t } = useTranslation();
@@ -40,125 +54,149 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
   >(null);
   const { showAlert } = useAlert();
 
-  const requestCameraPermission = async () => {
-    if (Platform.OS === 'android') {
-      try {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: t('cameraPermissionTitle'),
-            message: t('cameraPermissionMsg'),
-            buttonNeutral: t('askMeLater'),
-            buttonNegative: t('cancel'),
-            buttonPositive: t('ok'),
-          },
-        );
-        return granted === PermissionsAndroid.RESULTS.GRANTED;
-      } catch (err) {
-        console.warn(err);
-        return false;
-      }
-    }
-    return true;
+  const [adLoaded, setAdLoaded] = useState(false);
+  const userEarnedReward = useRef(false);
+
+  useEffect(() => {
+    const unsubscribeLoaded = rewarded.addAdEventListener(
+      RewardedAdEventType.LOADED,
+      () => {
+        setAdLoaded(true);
+      },
+    );
+
+    const unsubscribeEarned = rewarded.addAdEventListener(
+      RewardedAdEventType.EARNED_REWARD,
+      () => {
+        userEarnedReward.current = true;
+      },
+    );
+
+    const unsubscribeClosed = rewarded.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setAdLoaded(false);
+        rewarded.load();
+
+        if (userEarnedReward.current) {
+          executeImageProcessing();
+          userEarnedReward.current = false;
+        }
+      },
+    );
+
+    const unsubscribeError = rewarded.addAdEventListener(
+      AdEventType.ERROR,
+      error => {
+        console.error('Ad Error:', error);
+        setAdLoaded(false);
+      },
+    );
+
+    rewarded.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeEarned();
+      unsubscribeClosed();
+      unsubscribeError();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const getCropperTheme = () => {
+    return isDarkMode
+      ? {
+          toolbar: '#1F2937',
+          status: '#111827',
+          widget: '#FFFFFF',
+          active: '#60A5FA',
+        }
+      : {
+          toolbar: '#FFFFFF',
+          status: '#E5E7EB',
+          widget: '#111827',
+          active: '#3B82F6',
+        };
   };
 
-  const handleCameraLaunch = async () => {
-    const hasPermission = await requestCameraPermission();
-    if (!hasPermission) {
-      showAlert(t('permissionDenied'), t('cameraPermissionRequired'), [
-        { text: t('ok') },
-      ]);
-      return;
-    }
-
+  const startCropping = async (uri: string) => {
     try {
-      const cropperTheme = isDarkMode
-        ? {
-            toolbar: '#1F2937',
-            status: '#111827',
-            widget: '#FFFFFF',
-            active: '#60A5FA',
-          }
-        : {
-            toolbar: '#FFFFFF',
-            status: '#E5E7EB',
-            widget: '#111827',
-            active: '#3B82F6',
-          };
-
-      const image = await ImagePicker.openCamera({
-        mediaType: 'photo',
-        cropping: true,
-        freeStyleCropEnabled: true,
+      const theme = getCropperTheme();
+      const croppedImage = await ImagePickerCropper.openCropper({
+        path: uri,
         width: 1000,
         height: 1000,
-        includeBase64: false,
+        freeStyleCropEnabled: true,
+        cropping: true,
         cropperToolbarTitle: t('alignGrid'),
         hideBottomControls: false,
         enableRotationGesture: true,
-        cropperToolbarColor: cropperTheme.toolbar,
-        cropperStatusBarColor: cropperTheme.status,
-        cropperToolbarWidgetColor: cropperTheme.widget,
-        cropperActiveWidgetColor: cropperTheme.active,
+        cropperToolbarColor: theme.toolbar,
+        cropperStatusBarLight: !isDarkMode,
+        cropperToolbarWidgetColor: theme.widget,
+        cropperActiveWidgetColor: theme.active,
         showCropGuidelines: true,
+        mediaType: 'photo',
       });
 
-      if (image && image.path) {
-        setImageUri(image.path);
-        setImageDims({ width: image.width, height: image.height });
+      if (croppedImage && croppedImage.path) {
+        setImageUri(croppedImage.path);
+        setImageDims({
+          width: croppedImage.width,
+          height: croppedImage.height,
+        });
         setVerificationBoard(null);
       }
     } catch (error: any) {
       if (error.code !== 'E_PICKER_CANCELLED') {
-        console.log('Error launching camera:', error);
-        showAlert(t('error'), t('openCameraError'));
+        console.log('Crop Error:', error);
       }
+    }
+  };
+
+  const handleCameraLaunch = async () => {
+    if (Platform.OS === 'android') {
+      const granted = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.CAMERA,
+      );
+      if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
+        showAlert(t('permissionDenied'), t('cameraPermissionRequired'));
+        return;
+      }
+    }
+
+    try {
+      const result = await launchCamera({
+        mediaType: 'photo',
+        saveToPhotos: false,
+        quality: 1,
+      });
+
+      if (result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        await startCropping(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.log('Camera error', error);
     }
   };
 
   const handleGalleryLaunch = async () => {
     try {
-      const cropperTheme = isDarkMode
-        ? {
-            toolbar: '#1F2937',
-            status: '#111827',
-            widget: '#FFFFFF',
-            active: '#60A5FA',
-          }
-        : {
-            toolbar: '#FFFFFF',
-            status: '#E5E7EB',
-            widget: '#111827',
-            active: '#3B82F6',
-          };
-
-      const image = await ImagePicker.openPicker({
+      const result = await launchImageLibrary({
         mediaType: 'photo',
-        cropping: true,
-        freeStyleCropEnabled: true,
-        width: 1000,
-        height: 1000,
-        includeBase64: false,
-        cropperToolbarTitle: t('alignGrid'),
-        hideBottomControls: false,
-        enableRotationGesture: true,
-        cropperToolbarColor: cropperTheme.toolbar,
-        cropperStatusBarColor: cropperTheme.status,
-        cropperToolbarWidgetColor: cropperTheme.widget,
-        cropperActiveWidgetColor: cropperTheme.active,
-        showCropGuidelines: true,
+        selectionLimit: 1,
+        quality: 1,
       });
 
-      if (image && image.path) {
-        setImageUri(image.path);
-        setImageDims({ width: image.width, height: image.height });
-        setVerificationBoard(null);
+      if (result.didCancel) return;
+
+      if (result.assets && result.assets.length > 0 && result.assets[0].uri) {
+        await startCropping(result.assets[0].uri);
       }
     } catch (error: any) {
-      if (error.code !== 'E_PICKER_CANCELLED') {
-        console.log('Error launching gallery:', error);
-        showAlert(t('error'), t('openGalleryError'));
-      }
+      console.log('Gallery Error:', error);
+      showAlert(t('error'), t('openGalleryError'));
     }
   };
 
@@ -232,7 +270,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
     return grid;
   };
 
-  const processImage = async () => {
+  const executeImageProcessing = async () => {
     if (!imageUri || !imageDims) return;
     setIsProcessing(true);
 
@@ -256,6 +294,14 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       showAlert(t('error'), t('processingError'));
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const processImage = () => {
+    if (adLoaded) {
+      rewarded.show();
+    } else {
+      executeImageProcessing();
     }
   };
 
@@ -305,7 +351,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
             <Image
               source={{ uri: imageUri }}
               className="w-full h-full"
-              resizeMode="cover"
+              resizeMode="contain"
             />
             <TouchableOpacity
               onPress={() => setImageUri(null)}
@@ -322,11 +368,11 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
               onPress={handleCameraLaunch}
               onPressIn={() => playSound('click')}
               className={`w-full border-4 border-dashed items-center justify-center 
-                              ${
-                                isDarkMode
-                                  ? 'border-gray-700 bg-gray-800'
-                                  : 'border-gray-300 bg-white'
-                              }`}
+                            ${
+                              isDarkMode
+                                ? 'border-gray-700 bg-gray-800'
+                                : 'border-gray-300 bg-white'
+                            }`}
               style={{ height: hp(20), borderRadius: wp(5), gap: wp(3) }}
             >
               <MaterialCommunityIcons
@@ -348,11 +394,11 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
               onPress={handleGalleryLaunch}
               onPressIn={() => playSound('click')}
               className={`w-full border-4 border-dashed items-center justify-center
-                              ${
-                                isDarkMode
-                                  ? 'border-gray-700 bg-gray-800'
-                                  : 'border-gray-300 bg-white'
-                              }`}
+                            ${
+                              isDarkMode
+                                ? 'border-gray-700 bg-gray-800'
+                                : 'border-gray-300 bg-white'
+                            }`}
               style={{ height: hp(20), borderRadius: wp(5), gap: wp(3) }}
             >
               <MaterialCommunityIcons
@@ -378,11 +424,11 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
             onPressIn={() => !isProcessing && playSound('click')}
             disabled={isProcessing}
             className={`w-full flex-row items-center justify-center 
-                            ${
-                              isProcessing
-                                ? 'bg-gray-500'
-                                : 'bg-blue-600 active:bg-blue-700'
-                            }`}
+                          ${
+                            isProcessing
+                              ? 'bg-gray-500'
+                              : 'bg-blue-600 active:bg-blue-700'
+                          }`}
             style={{ paddingVertical: wp(4), borderRadius: wp(4) }}
           >
             {isProcessing ? (

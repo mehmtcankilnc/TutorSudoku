@@ -1,5 +1,5 @@
 /* eslint-disable react-native/no-inline-styles */
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { View, Text, TouchableOpacity, AppState } from 'react-native';
 import {
@@ -13,9 +13,15 @@ import { GameTimer } from './GameTimer';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useSudokuGame } from '../hooks/useSudokuGame';
 import { SudokuGrid } from './SudokuGrid';
-
-import { GameControls } from './GameControls';
 import { playSound } from '../utils/SoundManager';
+import { GameControls } from './GameControls';
+import { isValidMove } from '../utils/SudokuLogic';
+import {
+  InterstitialAd,
+  AdEventType,
+  TestIds,
+} from 'react-native-google-mobile-ads';
+import { INTERSTITIAL_AD_ID } from '@env';
 
 interface BoardProps {
   scannedBoard?: (number | null)[][];
@@ -28,6 +34,12 @@ interface BoardProps {
   containerStyle?: View['props']['style'];
 }
 
+const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : INTERSTITIAL_AD_ID;
+
+const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
+  requestNonPersonalizedAdsOnly: true,
+});
+
 export const Board: React.FC<BoardProps> = ({
   scannedBoard,
   isSettingsOpen = false,
@@ -39,6 +51,42 @@ export const Board: React.FC<BoardProps> = ({
 }) => {
   const isFocused = useIsFocused();
   const { t } = useTranslation();
+
+  const [interstitialLoaded, setInterstitialLoaded] = useState(false);
+  const hasShownAd = React.useRef(false);
+
+  useEffect(() => {
+    const unsubscribeLoaded = interstitial.addAdEventListener(
+      AdEventType.LOADED,
+      () => {
+        setInterstitialLoaded(true);
+      },
+    );
+
+    const unsubscribeClosed = interstitial.addAdEventListener(
+      AdEventType.CLOSED,
+      () => {
+        setInterstitialLoaded(false);
+        interstitial.load();
+      },
+    );
+
+    const unsubscribeError = interstitial.addAdEventListener(
+      AdEventType.ERROR,
+      error => {
+        console.error('Reklam yükleme hatası', error);
+        setInterstitialLoaded(false);
+      },
+    );
+
+    interstitial.load();
+
+    return () => {
+      unsubscribeLoaded();
+      unsubscribeClosed();
+      unsubscribeError();
+    };
+  }, []);
 
   const game = useSudokuGame(scannedBoard, () => {});
 
@@ -72,7 +120,9 @@ export const Board: React.FC<BoardProps> = ({
   useEffect(() => {
     const handleAppStateChange = (nextAppState: string) => {
       if (nextAppState !== 'active') {
-        gameRef.current.setIsPaused(true);
+        if (!gameRef.current.isSolved) {
+          gameRef.current.setIsPaused(true);
+        }
         saveGame();
       }
     };
@@ -116,9 +166,27 @@ export const Board: React.FC<BoardProps> = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!game.isSolved) {
+      hasShownAd.current = false;
+    }
+
+    if (game.isSolved) {
+      const AsyncStorage =
+        require('@react-native-async-storage/async-storage').default;
+      AsyncStorage.removeItem('saved_game').catch((e: any) =>
+        console.error('Failed to clear saved game', e),
+      );
+    }
+
+    if (game.isSolved && interstitialLoaded && !hasShownAd.current) {
+      interstitial.show();
+      hasShownAd.current = true;
+    }
+  }, [game.isSolved, interstitialLoaded]);
+
   const handleExit = () => {
     isManualExit.current = true;
-
     const AsyncStorage =
       require('@react-native-async-storage/async-storage').default;
     AsyncStorage.removeItem('saved_game').catch((e: any) =>
@@ -154,7 +222,6 @@ export const Board: React.FC<BoardProps> = ({
         saveGame();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     game.board,
     game.initialBoard,
@@ -231,6 +298,7 @@ export const Board: React.FC<BoardProps> = ({
           />
         </TouchableOpacity>
       </View>
+
       <View className="relative">
         {game.isSolved && (
           <ResultScreen
@@ -241,7 +309,7 @@ export const Board: React.FC<BoardProps> = ({
             isDarkMode={game.isDarkMode}
           />
         )}
-        {game.isPaused && (
+        {game.isPaused && !game.isSolved && (
           <View
             className={`absolute inset-0 z-50 items-center justify-center border-4 ${
               game.isDarkMode
@@ -259,9 +327,7 @@ export const Board: React.FC<BoardProps> = ({
               {t('paused')}
             </Text>
             <TouchableOpacity
-              onPress={() => {
-                game.setIsPaused(false);
-              }}
+              onPress={() => game.setIsPaused(false)}
               onPressIn={() => playSound('click')}
               className="bg-blue-500"
               style={{
@@ -334,7 +400,13 @@ export const Board: React.FC<BoardProps> = ({
           !!game.selectedCell &&
           game.initialBoard[game.selectedCell.row][game.selectedCell.col] ===
             null &&
-          (game.board[game.selectedCell.row][game.selectedCell.col] !== null ||
+          ((game.board[game.selectedCell.row][game.selectedCell.col] !== null &&
+            !isValidMove(
+              game.board,
+              game.selectedCell.row,
+              game.selectedCell.col,
+              game.board[game.selectedCell.row][game.selectedCell.col]!,
+            )) ||
             (game.notes[game.selectedCell.row] &&
               game.notes[game.selectedCell.row][game.selectedCell.col] &&
               game.notes[game.selectedCell.row][game.selectedCell.col].length >

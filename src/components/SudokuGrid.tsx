@@ -119,9 +119,11 @@ export const SudokuGrid: React.FC<SudokuGridProps> = ({
                   className={`${borderRight} ${borderBottom} relative ${zIndexClass}`}
                 >
                   <Cell
+                    row={rowIndex}
+                    col={colIndex}
                     value={cellValue}
                     candidates={currentCandidates}
-                    onPress={() => onCellPress(rowIndex, colIndex)}
+                    onPress={onCellPress}
                     isSelected={isSelected}
                     isRelated={isRelated}
                     isSameValue={

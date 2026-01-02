@@ -83,8 +83,8 @@ android {
         applicationId "com.tutorsudoku"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "1.2.2"
+        versionCode 7
+        versionName "1.2.4"
     }
     signingConfigs {
         debug {
@@ -119,6 +119,7 @@ android {
 dependencies {
     // The version of react-native is set by the React Native Gradle Plugin
     implementation("com.facebook.react:react-android")
+    implementation("com.google.android.gms:play-services-games-v2:+")
 
     if (hermesEnabled.toBoolean()) {
         implementation("com.facebook.react:hermes-android")
@@ -126,3 +127,4 @@ dependencies {
         implementation jscFlavor
     }
 }
+

@@ -33,18 +33,17 @@ import {
 } from 'react-native-responsive-screen';
 import { useResponsive } from './src/hooks/useResponsive';
 import LottieView from 'lottie-react-native';
-
 import { UpdateModal } from './src/components/UpdateModal';
-
-const CURRENT_VERSION = '1.2.2';
-const VERSION_URL =
-  'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
 import {
   loadSounds,
   playSound,
   setSoundEnabled,
 } from './src/utils/SoundManager';
 import { setSoundEnabled as setStoreSoundEnabled } from './src/store/themeSlice';
+
+const CURRENT_VERSION = '1.2.4';
+const VERSION_URL =
+  'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
 
 const compareVersions = (v1: string, v2: string) => {
   const parts1 = v1.split('.').map(Number);

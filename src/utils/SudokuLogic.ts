@@ -81,6 +81,49 @@ export const solve = (board: BoardType): boolean => {
   return true;
 };
 
+const getSolutionCount = (board: BoardType, limit: number = 2): number => {
+  let count = 0;
+
+  const solveHelper = (
+    currentBoard: BoardType,
+    startRow: number,
+    startCol: number,
+  ) => {
+    let row = -1;
+    let col = -1;
+    let isEmpty = false;
+
+    for (let r = startRow; r < 9; r++) {
+      for (let c = r === startRow ? startCol : 0; c < 9; c++) {
+        if (currentBoard[r][c] === null) {
+          row = r;
+          col = c;
+          isEmpty = true;
+          break;
+        }
+      }
+      if (isEmpty) break;
+    }
+
+    if (!isEmpty) {
+      count++;
+      return;
+    }
+
+    for (let num = 1; num <= 9; num++) {
+      if (isValidMove(currentBoard, row, col, num)) {
+        currentBoard[row][col] = num;
+        solveHelper(currentBoard, row, col);
+        if (count >= limit) return;
+        currentBoard[row][col] = null;
+      }
+    }
+  };
+
+  solveHelper(board, 0, 0);
+  return count;
+};
+
 export const generateSudoku = (
   difficulty: 'easy' | 'medium' | 'hard' = 'easy',
 ): { puzzle: BoardType; solution: BoardType } => {
@@ -90,20 +133,44 @@ export const generateSudoku = (
   solve(board);
   const solution = board.map(row => [...row]);
 
-  const attempts =
-    difficulty === 'easy' ? 30 : difficulty === 'medium' ? 45 : 55;
+  let targetClues = 45;
+  if (difficulty === 'medium') targetClues = 35;
+  if (difficulty === 'hard') targetClues = 28;
 
-  const newBoard = board.map(row => [...row]);
-  for (let i = 0; i < attempts; i++) {
-    let row = Math.floor(Math.random() * 9);
-    let col = Math.floor(Math.random() * 9);
-    while (newBoard[row][col] === null) {
-      row = Math.floor(Math.random() * 9);
-      col = Math.floor(Math.random() * 9);
+  const positions = [];
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      positions.push({ row: r, col: c });
     }
-    newBoard[row][col] = null;
   }
-  return { puzzle: newBoard, solution };
+
+  for (let i = positions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [positions[i], positions[j]] = [positions[j], positions[i]];
+  }
+
+  const puzzle = board.map(row => [...row]);
+  let currentClues = 81;
+
+  for (const pos of positions) {
+    if (currentClues <= targetClues) break;
+
+    const { row, col } = pos;
+    const originalValue = puzzle[row][col];
+
+    puzzle[row][col] = null;
+
+    const puzzleCopy = puzzle.map(r => [...r]);
+    const solutions = getSolutionCount(puzzleCopy, 2);
+
+    if (solutions !== 1) {
+      puzzle[row][col] = originalValue;
+    } else {
+      currentClues--;
+    }
+  }
+
+  return { puzzle: puzzle, solution };
 };
 
 export const getPossibleValues = (
@@ -143,6 +210,7 @@ const getCandidatesMap = (board: BoardType): number[][][] => {
 const checkLockedCandidates = (
   board: BoardType,
   candidates: number[][][],
+  userNotes?: number[][][],
 ): Hint | null => {
   for (let br = 0; br < 3; br++) {
     for (let bc = 0; bc < 3; bc++) {
@@ -173,7 +241,22 @@ const checkLockedCandidates = (
               }
             }
             if (existsOutside) {
-              if (existsOutside) {
+              let useful = true;
+              if (userNotes) {
+                useful = false;
+                for (let c = 0; c < 9; c++) {
+                  if (
+                    Math.floor(c / 3) !== bc &&
+                    board[firstRow][c] === null &&
+                    candidates[firstRow][c].includes(num) &&
+                    userNotes[firstRow][c].includes(num)
+                  ) {
+                    useful = true;
+                    break;
+                  }
+                }
+              }
+              if (useful) {
                 return {
                   key: 'hint_lockedCandidatePointingRow',
                   params: {
@@ -201,7 +284,22 @@ const checkLockedCandidates = (
               }
             }
             if (existsOutside) {
-              if (existsOutside) {
+              let useful = true;
+              if (userNotes) {
+                useful = false;
+                for (let r = 0; r < 9; r++) {
+                  if (
+                    Math.floor(r / 3) !== br &&
+                    board[r][firstCol] === null &&
+                    candidates[r][firstCol].includes(num) &&
+                    userNotes[r][firstCol].includes(num)
+                  ) {
+                    useful = true;
+                    break;
+                  }
+                }
+              }
+              if (useful) {
                 return {
                   key: 'hint_lockedCandidatePointingCol',
                   params: {
@@ -224,6 +322,7 @@ const checkLockedCandidates = (
 const checkNakedPairs = (
   board: BoardType,
   candidates: number[][][],
+  userNotes?: number[][][],
 ): Hint | null => {
   for (let r = 0; r < 9; r++) {
     const pairs: { [key: string]: number[] } = {};
@@ -250,20 +349,44 @@ const checkNakedPairs = (
           }
         }
         if (effective) {
-          const c1 = pairs[k][0];
-          const c2 = pairs[k][1];
-          return {
-            key: 'hint_nakedPairRow',
-            params: {
-              row: r + 1,
-              col1: c1 + 1,
-              col2: c2 + 1,
-              candidates: k,
-              val1: combo[0],
-              val2: combo[1],
-            },
-            cell: { row: r, col: c1 },
-          };
+          let useful = true;
+          if (userNotes) {
+            useful = false;
+            const combo = k.split(',').map(Number);
+            for (let c = 0; c < 9; c++) {
+              if (!pairs[k].includes(c) && board[r][c] === null) {
+                if (
+                  candidates[r][c].includes(combo[0]) ||
+                  candidates[r][c].includes(combo[1])
+                ) {
+                  if (
+                    userNotes[r][c].includes(combo[0]) ||
+                    userNotes[r][c].includes(combo[1])
+                  ) {
+                    useful = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (useful) {
+            const c1 = pairs[k][0];
+            const c2 = pairs[k][1];
+            return {
+              key: 'hint_nakedPairRow',
+              params: {
+                row: r + 1,
+                col1: c1 + 1,
+                col2: c2 + 1,
+                candidates: k,
+                val1: combo[0],
+                val2: combo[1],
+              },
+              cell: { row: r, col: c1 },
+            };
+          }
         }
       }
     }
@@ -294,15 +417,39 @@ const checkNakedPairs = (
           }
         }
         if (effective) {
-          const r1 = pairs[k][0];
-          return {
-            key: 'hint_nakedPairCol',
-            params: {
-              col: c + 1,
-              candidates: k,
-            },
-            cell: { row: r1, col: c },
-          };
+          let useful = true;
+          if (userNotes) {
+            useful = false;
+            const combo = k.split(',').map(Number);
+            for (let r = 0; r < 9; r++) {
+              if (!pairs[k].includes(r) && board[r][c] === null) {
+                if (
+                  candidates[r][c].includes(combo[0]) ||
+                  candidates[r][c].includes(combo[1])
+                ) {
+                  if (
+                    userNotes[r][c].includes(combo[0]) ||
+                    userNotes[r][c].includes(combo[1])
+                  ) {
+                    useful = true;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          if (useful) {
+            const r1 = pairs[k][0];
+            return {
+              key: 'hint_nakedPairCol',
+              params: {
+                col: c + 1,
+                candidates: k,
+              },
+              cell: { row: r1, col: c },
+            };
+          }
         }
       }
     }
@@ -311,7 +458,10 @@ const checkNakedPairs = (
   return null;
 };
 
-export const getHint = (board: BoardType): Hint | null => {
+export const getHint = (
+  board: BoardType,
+  userNotes?: number[][][],
+): Hint | null => {
   let bestHint: Hint | null = null;
   let bestScore = -1;
 
@@ -418,11 +568,11 @@ export const getHint = (board: BoardType): Hint | null => {
   if (bestHint) return bestHint;
 
   // 3. Locked Candidates
-  const lockedHint = checkLockedCandidates(board, candidatesMap);
+  const lockedHint = checkLockedCandidates(board, candidatesMap, userNotes);
   if (lockedHint) return lockedHint;
 
   // 4. Naked Pairs
-  const nakedPairHint = checkNakedPairs(board, candidatesMap);
+  const nakedPairHint = checkNakedPairs(board, candidatesMap, userNotes);
   if (nakedPairHint) return nakedPairHint;
 
   return {
