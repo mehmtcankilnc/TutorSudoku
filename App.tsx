@@ -1,6 +1,5 @@
 /* eslint-disable react/no-unstable-nested-components */
 /* eslint-disable react-native/no-inline-styles */
-/* eslint-disable react-hooks/exhaustive-deps */
 import './global.css';
 import './src/i18n';
 import { useTranslation } from 'react-i18next';
@@ -23,8 +22,8 @@ import { AlertProvider } from './src/context/AlertContext';
 import { OnboardingScreen } from './src/screens/OnboardingScreen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
-import { hydrateUser, setGamesWon } from './src/store/userSlice';
-import { View, useColorScheme } from 'react-native';
+import { hydrateUser, setGamesWon, setBestTimes } from './src/store/userSlice';
+import { View, useColorScheme, NativeModules } from 'react-native';
 import { setDarkMode } from './src/store/themeSlice';
 import { setCompletedTutorials } from './src/store/progressSlice';
 import {
@@ -41,7 +40,15 @@ import {
 } from './src/utils/SoundManager';
 import { setSoundEnabled as setStoreSoundEnabled } from './src/store/themeSlice';
 
-const CURRENT_VERSION = '1.2.4';
+const { PlayGames } = NativeModules;
+const LEADERBOARD_IDS = {
+  TOTAL_WINS: 'CgkI1O2G5fIKEAIQAQ',
+  EASY_TIME: 'CgkI1O2G5fIKEAIQAg',
+  MEDIUM_TIME: 'CgkI1O2G5fIKEAIQAw',
+  HARD_TIME: 'CgkI1O2G5fIKEAIQBA',
+};
+
+const CURRENT_VERSION = '1.3.0';
 const VERSION_URL =
   'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
 
@@ -66,7 +73,7 @@ const MainApp = () => {
   const isSoundEnabled = useSelector(
     (state: RootState) => state.theme.isSoundEnabled,
   );
-  const isOnboarded = useSelector((state: RootState) => state.user.isOnboarded);
+  const { isOnboarded } = useSelector((state: RootState) => state.user);
   const systemScheme = useColorScheme();
   const [isLoading, setIsLoading] = React.useState(true);
   const isStoreLoaded = React.useRef(false);
@@ -75,6 +82,93 @@ const MainApp = () => {
 
   const [isUpdateRequired, setIsUpdateRequired] = React.useState(false);
   const [storeUrl, setStoreUrl] = React.useState('');
+
+  React.useEffect(() => {
+    PlayGames.init()
+      .then(async (isAuthenticated: boolean) => {
+        console.log('Giriş durumu: ', isAuthenticated);
+        if (isAuthenticated) {
+          try {
+            const [cloudTotalWins, cloudEasy, cloudMedium, cloudHard] =
+              await Promise.all([
+                PlayGames.getMyScore(LEADERBOARD_IDS.TOTAL_WINS),
+                PlayGames.getMyScore(LEADERBOARD_IDS.EASY_TIME),
+                PlayGames.getMyScore(LEADERBOARD_IDS.MEDIUM_TIME),
+                PlayGames.getMyScore(LEADERBOARD_IDS.HARD_TIME),
+              ]);
+
+            const currentUserState = store.getState().user;
+            let hasChanges = false;
+
+            const localWins = currentUserState.gamesWon;
+            const localTotalWins =
+              localWins.easy + localWins.medium + localWins.hard;
+
+            let newWins = { ...localWins };
+
+            if (cloudTotalWins > localTotalWins) {
+              const diff = cloudTotalWins - localTotalWins;
+              if (diff > 3) {
+                newWins.easy += 3;
+                newWins.medium += diff - 3;
+              } else {
+                newWins.easy += diff;
+              }
+              hasChanges = true;
+            }
+
+            const localTimes = currentUserState.bestTimes || {
+              easy: null,
+              medium: null,
+              hard: null,
+            };
+            let newTimes = { ...localTimes };
+
+            const syncTime = (cloudVal: number, localVal: number | null) => {
+              if (cloudVal <= 0) return localVal;
+
+              const cloudSeconds = cloudVal / 1000;
+
+              if (localVal === null || cloudSeconds < localVal) {
+                return cloudSeconds;
+              }
+              return localVal;
+            };
+
+            const syncedEasy = syncTime(cloudEasy, localTimes.easy);
+            const syncedMedium = syncTime(cloudMedium, localTimes.medium);
+            const syncedHard = syncTime(cloudHard, localTimes.hard);
+
+            if (
+              syncedEasy !== localTimes.easy ||
+              syncedMedium !== localTimes.medium ||
+              syncedHard !== localTimes.hard
+            ) {
+              newTimes = {
+                easy: syncedEasy,
+                medium: syncedMedium,
+                hard: syncedHard,
+              };
+              hasChanges = true;
+            }
+
+            if (hasChanges) {
+              if (newWins !== localWins) dispatch(setGamesWon(newWins));
+              if (newTimes !== localTimes) dispatch(setBestTimes(newTimes));
+
+              await AsyncStorage.setItem('user_wins', JSON.stringify(newWins));
+              await AsyncStorage.setItem(
+                'user_best_times',
+                JSON.stringify(newTimes),
+              );
+            }
+          } catch (error) {
+            console.error('Senkronizasyon hatası:', error);
+          }
+        }
+      })
+      .catch((err: any) => console.error('Play Games Hatası: ', err));
+  }, [dispatch]);
 
   React.useEffect(() => {
     loadSounds();
@@ -142,6 +236,12 @@ const MainApp = () => {
           const parsedWins = JSON.parse(winsData);
           dispatch(setGamesWon(parsedWins));
         }
+
+        const timesData = await AsyncStorage.getItem('user_best_times');
+        if (timesData) {
+          const parsedTimes = JSON.parse(timesData);
+          dispatch(setBestTimes(parsedTimes));
+        }
       } catch (e) {
         console.error(e);
       } finally {
@@ -157,20 +257,27 @@ const MainApp = () => {
   }, [isSoundEnabled]);
 
   React.useEffect(() => {
-    const saveWins = async () => {
+    const saveData = async () => {
       if (!isStoreLoaded.current) {
         return;
       }
       try {
-        const gamesWon = store.getState().user.gamesWon;
-        await AsyncStorage.setItem('user_wins', JSON.stringify(gamesWon));
+        const userState = store.getState().user;
+        await AsyncStorage.setItem(
+          'user_wins',
+          JSON.stringify(userState.gamesWon),
+        );
+        await AsyncStorage.setItem(
+          'user_best_times',
+          JSON.stringify(userState.bestTimes),
+        );
       } catch (e) {
         console.error('Failed to save wins', e);
       }
     };
 
     const unsubscribe = store.subscribe(() => {
-      saveWins();
+      saveData();
     });
     return () => unsubscribe();
   }, []);

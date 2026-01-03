@@ -9,6 +9,11 @@ export interface UserState {
     medium: number;
     hard: number;
   };
+  bestTimes: {
+    easy: number | null;
+    medium: number | null;
+    hard: number | null;
+  };
 }
 
 const initialState: UserState = {
@@ -20,6 +25,7 @@ const initialState: UserState = {
     medium: 0,
     hard: 0,
   },
+  bestTimes: { easy: null, medium: null, hard: null },
 };
 
 const userSlice = createSlice({
@@ -59,6 +65,22 @@ const userSlice = createSlice({
       state.skillLevel = null;
       state.playFrequency = null;
     },
+    setBestTimes: (state, action: PayloadAction<UserState['bestTimes']>) => {
+      state.bestTimes = action.payload;
+    },
+    updateBestTime: (
+      state,
+      action: PayloadAction<{
+        difficulty: 'easy' | 'medium' | 'hard';
+        time: number;
+      }>,
+    ) => {
+      const { difficulty, time } = action.payload;
+      const currentBest = state.bestTimes[difficulty];
+      if (currentBest === null || time < currentBest) {
+        state.bestTimes[difficulty] = time;
+      }
+    },
   },
 });
 
@@ -68,5 +90,7 @@ export const {
   recordWin,
   setGamesWon,
   resetOnboarding,
+  setBestTimes,
+  updateBestTime,
 } = userSlice.actions;
 export default userSlice.reducer;

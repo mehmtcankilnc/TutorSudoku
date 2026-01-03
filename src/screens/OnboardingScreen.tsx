@@ -20,6 +20,7 @@ import {
   FrequencyStep,
 } from '../components/Onboarding';
 import { useTranslation } from 'react-i18next';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export const OnboardingScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -209,7 +210,7 @@ export const OnboardingScreen: React.FC = () => {
             totalSteps={steps.length}
             isDarkMode={isDarkMode}
           />
-          <View className="flex-row" style={{ gap: wp(4) }}>
+          <SafeAreaView className="flex-row" style={{ gap: wp(4) }}>
             <TouchableOpacity
               onPress={handleBack}
               className={`flex-1 items-center border ${
@@ -247,7 +248,7 @@ export const OnboardingScreen: React.FC = () => {
                 {step === steps.length - 1 ? t('complete') : t('next')}
               </Text>
             </TouchableOpacity>
-          </View>
+          </SafeAreaView>
         </View>
       )}
     </View>

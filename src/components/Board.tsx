@@ -1,7 +1,13 @@
 /* eslint-disable react-native/no-inline-styles */
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { View, Text, TouchableOpacity, AppState } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  AppState,
+  NativeModules,
+} from 'react-native';
 import {
   widthPercentageToDP as wp,
   heightPercentageToDP as hp,
@@ -32,7 +38,17 @@ interface BoardProps {
   justResumed?: boolean;
   onReady?: () => void;
   containerStyle?: View['props']['style'];
+  totalWins: number;
 }
+
+const { PlayGames } = NativeModules;
+
+const LEADERBOARD_IDS = {
+  TOTAL_WINS: 'CgkI1O2G5fIKEAIQAQ',
+  EASY_TIME: 'CgkI1O2G5fIKEAIQAg',
+  MEDIUM_TIME: 'CgkI1O2G5fIKEAIQAw',
+  HARD_TIME: 'CgkI1O2G5fIKEAIQBA',
+};
 
 const adUnitId = __DEV__ ? TestIds.INTERSTITIAL : INTERSTITIAL_AD_ID;
 
@@ -48,12 +64,15 @@ export const Board: React.FC<BoardProps> = ({
   savedGameState,
   justResumed,
   onReady,
+  totalWins,
 }) => {
   const isFocused = useIsFocused();
   const { t } = useTranslation();
 
   const [interstitialLoaded, setInterstitialLoaded] = useState(false);
   const hasShownAd = React.useRef(false);
+
+  const hasSubmittedScore = React.useRef(false);
 
   useEffect(() => {
     const unsubscribeLoaded = interstitial.addAdEventListener(
@@ -169,21 +188,67 @@ export const Board: React.FC<BoardProps> = ({
   useEffect(() => {
     if (!game.isSolved) {
       hasShownAd.current = false;
+      hasSubmittedScore.current = false;
+      return;
     }
 
-    if (game.isSolved) {
-      const AsyncStorage =
-        require('@react-native-async-storage/async-storage').default;
-      AsyncStorage.removeItem('saved_game').catch((e: any) =>
-        console.error('Failed to clear saved game', e),
-      );
+    const AsyncStorage =
+      require('@react-native-async-storage/async-storage').default;
+    AsyncStorage.removeItem('saved_game').catch((e: any) =>
+      console.error('Failed to clear saved game', e),
+    );
+
+    if (!hasSubmittedScore.current) {
+      hasSubmittedScore.current = true;
+
+      const submitScores = async () => {
+        try {
+          const timeScore = game.timerRef.current * 1000;
+
+          const [cloudEasy, cloudMedium, cloudHard] = await Promise.all([
+            PlayGames.getMyScore(LEADERBOARD_IDS.EASY_TIME),
+            PlayGames.getMyScore(LEADERBOARD_IDS.MEDIUM_TIME),
+            PlayGames.getMyScore(LEADERBOARD_IDS.HARD_TIME),
+          ]);
+
+          switch (game.currentDifficulty) {
+            case 'easy':
+              if (cloudEasy > timeScore) {
+                PlayGames.submitScore(LEADERBOARD_IDS.EASY_TIME, timeScore);
+              }
+              break;
+            case 'medium':
+              if (cloudMedium > timeScore) {
+                PlayGames.submitScore(LEADERBOARD_IDS.MEDIUM_TIME, timeScore);
+              }
+              break;
+            case 'hard':
+              if (cloudHard > timeScore) {
+                PlayGames.submitScore(LEADERBOARD_IDS.HARD_TIME, timeScore);
+              }
+              break;
+          }
+
+          PlayGames.submitScore(LEADERBOARD_IDS.TOTAL_WINS, totalWins);
+        } catch (error) {
+          console.error('Skor gönderme hatası:', error);
+        }
+      };
+
+      submitScores();
     }
 
     if (game.isSolved && interstitialLoaded && !hasShownAd.current) {
       interstitial.show();
       hasShownAd.current = true;
     }
-  }, [game.isSolved, interstitialLoaded]);
+  }, [
+    game.isSolved,
+    game.currentDifficulty,
+    game.timerRef,
+    interstitialLoaded,
+    totalWins,
+  ]);
 
   const handleExit = () => {
     isManualExit.current = true;

@@ -8,6 +8,7 @@ import {
   BackHandler,
   ToastAndroid,
   ActivityIndicator,
+  NativeModules,
 } from 'react-native';
 import {
   widthPercentageToDP as wp,
@@ -26,6 +27,8 @@ type PlayScreenRouteProp = RouteProp<
   { Play: { scannedBoard?: (number | null)[][] } },
   'Play'
 >;
+
+const { PlayGames } = NativeModules;
 
 export const PlayScreen: React.FC = () => {
   const { t } = useTranslation();
@@ -250,22 +253,42 @@ export const PlayScreen: React.FC = () => {
               {t('gameScreenText')}
             </Text>
           </View>
-          <TouchableOpacity
-            onPress={() => {
-              setIsSettingsVisible(true);
-            }}
-            onPressIn={() => playSound('click')}
-            className={`rounded-full ${
-              isDarkMode ? 'bg-gray-800' : 'bg-white'
-            }`}
-            style={{ padding: wp(2), marginRight: wp(4) }}
-          >
-            <MaterialCommunityIcons
-              name="cog"
-              size={wp(6)}
-              color={isDarkMode ? '#9CA3AF' : '#4B5563'}
-            />
-          </TouchableOpacity>
+          <View className="flex-row">
+            <TouchableOpacity
+              onPress={() => {
+                PlayGames.showAllLeaderboards().catch((e: any) =>
+                  console.error(e),
+                );
+              }}
+              onPressIn={() => playSound('click')}
+              className={`rounded-full ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              }`}
+              style={{ padding: wp(2), marginRight: wp(4) }}
+            >
+              <MaterialCommunityIcons
+                name="trophy"
+                size={wp(6)}
+                color={'#F59E0B'}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                setIsSettingsVisible(true);
+              }}
+              onPressIn={() => playSound('click')}
+              className={`rounded-full ${
+                isDarkMode ? 'bg-gray-800' : 'bg-white'
+              }`}
+              style={{ padding: wp(2), marginRight: wp(4) }}
+            >
+              <MaterialCommunityIcons
+                name="cog"
+                size={wp(6)}
+                color={isDarkMode ? '#9CA3AF' : '#4B5563'}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
         <SettingsModal
           visible={isSettingsVisible}
@@ -494,6 +517,7 @@ export const PlayScreen: React.FC = () => {
                       setLoadingLevel(null);
                       setGameStage('playing');
                     }}
+                    totalWins={gamesWon.easy + gamesWon.medium + gamesWon.hard}
                   />
                 </View>
               )}
@@ -507,6 +531,7 @@ export const PlayScreen: React.FC = () => {
               onExit={handleExitGame}
               savedGameState={savedGame}
               justResumed={savedGame !== null && savedGame !== undefined}
+              totalWins={gamesWon.easy + gamesWon.medium + gamesWon.hard}
             />
           )}
         </View>

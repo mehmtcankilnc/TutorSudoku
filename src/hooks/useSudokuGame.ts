@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { AppState } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../store/store';
-import { recordWin } from '../store/userSlice';
+import { recordWin, updateBestTime } from '../store/userSlice';
 import {
   generateSudoku,
   isValidMove,
@@ -365,6 +365,12 @@ export const useSudokuGame = (
 
           setIsTimerRunning(false);
           dispatch(recordWin(currentDifficulty));
+          dispatch(
+            updateBestTime({
+              difficulty: currentDifficulty,
+              time: timerRef.current,
+            }),
+          );
 
           setTimeout(() => {
             setIsSolved(true);
@@ -446,7 +452,7 @@ export const useSudokuGame = (
     } else {
       showAlert(t('goodJob'), t('boardSolved'));
     }
-  }, [isSolved, isPaused, board, t, showAlert]);
+  }, [isSolved, isPaused, board, notes, showAlert, t]);
 
   const togglePause = useCallback(() => {
     setIsPaused(prev => !prev);

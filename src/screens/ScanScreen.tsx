@@ -80,7 +80,6 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
 
         if (userEarnedReward.current) {
           executeImageProcessing();
-          userEarnedReward.current = false;
         }
       },
     );
@@ -170,10 +169,10 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
       const result = await launchCamera({
         mediaType: 'photo',
         saveToPhotos: false,
-        quality: 1,
+        quality: 0.8,
       });
 
-      if (result.assets && result.assets.length > 0 && result.assets[0].uri) {
+      if (result.assets && result.assets[0]?.uri) {
         await startCropping(result.assets[0].uri);
       }
     } catch (error) {
@@ -298,7 +297,7 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
   };
 
   const processImage = () => {
-    if (adLoaded) {
+    if (!userEarnedReward.current && adLoaded) {
       rewarded.show();
     } else {
       executeImageProcessing();
@@ -354,7 +353,10 @@ export const ScanScreen: React.FC<ScanScreenProps> = () => {
               resizeMode="contain"
             />
             <TouchableOpacity
-              onPress={() => setImageUri(null)}
+              onPress={() => {
+                setImageUri(null);
+                userEarnedReward.current = false;
+              }}
               onPressIn={() => playSound('click')}
               className="absolute top-2 right-2 bg-red-500 rounded-full"
               style={{ padding: wp(2) }}
