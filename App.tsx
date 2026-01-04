@@ -48,7 +48,7 @@ const LEADERBOARD_IDS = {
   HARD_TIME: 'CgkI1O2G5fIKEAIQBA',
 };
 
-const CURRENT_VERSION = '1.3.0';
+const CURRENT_VERSION = '1.3.4';
 const VERSION_URL =
   'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
 
