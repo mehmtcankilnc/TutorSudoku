@@ -43,12 +43,12 @@ import { setSoundEnabled as setStoreSoundEnabled } from './src/store/themeSlice'
 const { PlayGames } = NativeModules;
 const LEADERBOARD_IDS = {
   TOTAL_WINS: 'CgkI1O2G5fIKEAIQAQ',
-  EASY_TIME: 'CgkI1O2G5fIKEAIQAg',
+  EASY_TIME: 'CgkI1O2G5fIKEAIQBw',
   MEDIUM_TIME: 'CgkI1O2G5fIKEAIQAw',
   HARD_TIME: 'CgkI1O2G5fIKEAIQBA',
 };
 
-const CURRENT_VERSION = '1.3.4';
+const CURRENT_VERSION = '1.3.5';
 const VERSION_URL =
   'https://raw.githubusercontent.com/mehmtcankilnc/TutorSudoku/main/version.json';
 

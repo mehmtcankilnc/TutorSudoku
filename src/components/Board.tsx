@@ -45,7 +45,7 @@ const { PlayGames } = NativeModules;
 
 const LEADERBOARD_IDS = {
   TOTAL_WINS: 'CgkI1O2G5fIKEAIQAQ',
-  EASY_TIME: 'CgkI1O2G5fIKEAIQAg',
+  EASY_TIME: 'CgkI1O2G5fIKEAIQBw',
   MEDIUM_TIME: 'CgkI1O2G5fIKEAIQAw',
   HARD_TIME: 'CgkI1O2G5fIKEAIQBA',
 };
@@ -203,7 +203,8 @@ export const Board: React.FC<BoardProps> = ({
 
       const submitScores = async () => {
         try {
-          const timeScore = game.timerRef.current * 1000;
+          const timeScore = Math.floor(game.timerRef.current * 1000);
+          const difficulty = game.currentDifficulty.toLowerCase();
 
           const [cloudEasy, cloudMedium, cloudHard] = await Promise.all([
             PlayGames.getMyScore(LEADERBOARD_IDS.EASY_TIME),
@@ -211,25 +212,37 @@ export const Board: React.FC<BoardProps> = ({
             PlayGames.getMyScore(LEADERBOARD_IDS.HARD_TIME),
           ]);
 
-          switch (game.currentDifficulty) {
-            case 'easy':
-              if (cloudEasy > timeScore) {
-                PlayGames.submitScore(LEADERBOARD_IDS.EASY_TIME, timeScore);
-              }
-              break;
-            case 'medium':
-              if (cloudMedium > timeScore) {
-                PlayGames.submitScore(LEADERBOARD_IDS.MEDIUM_TIME, timeScore);
-              }
-              break;
-            case 'hard':
-              if (cloudHard > timeScore) {
-                PlayGames.submitScore(LEADERBOARD_IDS.HARD_TIME, timeScore);
-              }
-              break;
+          let shouldSubmit = false;
+          let targetLeaderboard = '';
+
+          if (
+            difficulty === 'easy' &&
+            (timeScore < cloudEasy || cloudEasy <= 0)
+          ) {
+            targetLeaderboard = LEADERBOARD_IDS.EASY_TIME;
+            shouldSubmit = true;
+          } else if (
+            difficulty === 'medium' &&
+            (timeScore < cloudMedium || cloudMedium <= 0)
+          ) {
+            targetLeaderboard = LEADERBOARD_IDS.MEDIUM_TIME;
+            shouldSubmit = true;
+          } else if (
+            difficulty === 'hard' &&
+            (timeScore < cloudHard || cloudHard <= 0)
+          ) {
+            targetLeaderboard = LEADERBOARD_IDS.HARD_TIME;
+            shouldSubmit = true;
           }
 
-          PlayGames.submitScore(LEADERBOARD_IDS.TOTAL_WINS, totalWins);
+          if (shouldSubmit) {
+            console.log(
+              `Yeni rekor! ${targetLeaderboard} için skor: ${timeScore}`,
+            );
+            await PlayGames.submitScore(targetLeaderboard, timeScore);
+          }
+
+          await PlayGames.submitScore(LEADERBOARD_IDS.TOTAL_WINS, totalWins);
         } catch (error) {
           console.error('Skor gönderme hatası:', error);
         }
